@@ -4,11 +4,10 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.52.2-orange)
-![License](https://img.shields.io/badge/License-MIT-green)
 
 ------------------------------------------------------------------------------
 ## Overview
-------------------------------------------------------------------------------
+
 
 The **Interactive Health Risk Dashboard** is a Streamlit-based web application that provides personalized health risk assessments for multiple conditions, including:
 
