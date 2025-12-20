@@ -10,6 +10,7 @@ from fpdf import FPDF
 import os
 import io
 import streamlit as st
+from datetime import datetime
 
 #---------------------------------------------------------------------------------------------#
 # --- Load trained models ---
@@ -404,7 +405,7 @@ st.info(
 )
 
 #---------------------------------------------------------------------------------------------#
-# --- Interpret Risk ---
+# --- Results ---
 #---------------------------------------------------------------------------------------------#
 
 if results:
@@ -412,9 +413,18 @@ if results:
         for disease, risk in results.items():
             st.metric(f"{disease} Risk", f"{risk*100:.1f}%")
 
+
 #---------------------------------------------------------------------------------------------#
-# --- PDF Export ---
+# --- Interpret Risk ---
 #---------------------------------------------------------------------------------------------#
+
+# Disease descriptions
+disease_descriptions = {
+    "IHD": "Ischemic Heart Disease: Reduced blood supply to the heart, can lead to chest pain or heart attack.",
+    "Diabetes": "Diabetes: High blood sugar levels due to insulin issues.",
+    "Stroke": "Stroke: Interruption of blood flow to the brain causing potential long-term damage.",
+    "COVID-19": "COVID-19: Viral infection that can affect respiratory and other systems."
+}
 
 def interpret_risk(risk):
     """
@@ -451,24 +461,70 @@ if results:
 # --- PDF Export ---
 #---------------------------------------------------------------------------------------------#
 
-def save_pdf(results_dict):
+# Disease descriptions
+disease_descriptions = {
+    "IHD": "Ischemic Heart Disease: Reduced blood supply to the heart, can lead to chest pain or heart attack.",
+    "Diabetes": "Diabetes: High blood sugar levels due to insulin issues.",
+    "Stroke": "Stroke: Interruption of blood flow to the brain causing potential long-term damage.",
+    "COVID-19": "COVID-19: Viral infection that can affect respiratory and other systems."
+}
+
+def save_pdf(results_dict, patient_info):
+    """
+    Generate a detailed Patient Health Risk Report PDF.
+
+    Parameters:
+    - results_dict: dict, disease -> risk probability (0-1)
+    - patient_info: dict, e.g. {"age":30, "gender":"Male", "bmi":25.0, "smoking":0, "alcohol":1, "activity":2}
+    """
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
+    pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, txt="Patient Health Risk Report", ln=True, align="C")
-    pdf.ln(10)
+    pdf.ln(5)
+    
+    # Patient info
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(200, 8, txt=f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
+    pdf.cell(200, 8, txt=f"Age: {patient_info.get('age', 'N/A')} | Gender: {patient_info.get('gender', 'N/A')} | BMI: {patient_info.get('bmi', 'N/A'):.1f}", ln=True)
+    pdf.cell(200, 8, txt=f"Smoking: {patient_info.get('smoking', 'N/A')} | Alcohol: {patient_info.get('alcohol', 'N/A')} | Physical Activity: {patient_info.get('activity', 'N/A')}", ln=True)
+    pdf.ln(5)
+
+    # Define risk categories and tips
+    risk_categories = [
+        (0.0, 0.1, "Low", "Maintain your healthy lifestyle."),
+        (0.1, 0.2, "Moderate", "Consider improving diet, exercise, and regular check-ups."),
+        (0.2, 1.0, "High", "Seek advice from a healthcare professional.")
+    ]
+
+    # Disease sections
     for disease, risk in results_dict.items():
-        pdf.cell(200, 10, txt=f"{disease} Risk: {risk*100:.1f}%", ln=True)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 8, txt=f"{disease} Risk: {risk*100:.1f}%", ln=True)
+        
+        # Determine risk category
+        category_text = "Unknown"
+        tip_text = ""
+        for lower, upper, category, tip in risk_categories:
+            if lower <= risk < upper:
+                category_text = category
+                tip_text = tip
+                break
+        
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(200, 6, txt=f"Risk Category: {category_text}", ln=True)
+        pdf.multi_cell(0, 6, txt=f"Tip: {tip_text}")
+        
+        # Add disease description
+        description_text = disease_descriptions.get(disease, "No description available.")
+        pdf.multi_cell(0, 6, txt=f"Description: {description_text}")
+        pdf.ln(2)
 
-    # Use dest='S' to get PDF as string
-    pdf_str = pdf.output(dest='S').encode('latin1')  # bytes
-    return pdf_str
-
-if results:
-    pdf_bytes = save_pdf(results)
-    st.download_button(
-        label="Download Report as PDF",
-        data=pdf_bytes,
-        file_name="health_risk_report.pdf",
-        mime="application/pdf"
-    )
+    # Disclaimer
+    pdf.ln(5)
+    pdf.set_font("Arial", 'I', 10)
+    pdf.multi_cell(0, 5, txt="Disclaimer: This report is for informational purposes only and is not a medical diagnosis. Please consult a licensed healthcare professional for personalized advice.")
+    
+    # Output PDF as bytes
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    return pdf_bytes
