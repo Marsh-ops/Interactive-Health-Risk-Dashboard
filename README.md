@@ -1,6 +1,5 @@
 ------------------------------------------------------------------------------
 # Interactive Health Risk Dashboard
-------------------------------------------------------------------------------
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.52.2-orange)
@@ -22,7 +21,7 @@ It leverages **machine learning models** to estimate probabilities of these cond
 
 ------------------------------------------------------------------------------
 ## Features
-------------------------------------------------------------------------------
+
 
 - User-friendly interface to input health metrics (BMI, blood pressure, heart rate, smoking, alcohol, activity level)  
 - Disease-specific additional information with optional “N/A or Unknown” defaults  
@@ -32,7 +31,7 @@ It leverages **machine learning models** to estimate probabilities of these cond
 
 ------------------------------------------------------------------------------
 ## Risk Categories
-------------------------------------------------------------------------------
+
 
 | Risk %       | Category      | Suggested Action |
 |--------------|--------------|----------------|
@@ -43,7 +42,7 @@ It leverages **machine learning models** to estimate probabilities of these cond
 
 ------------------------------------------------------------------------------
 ## Installation & Setup
-------------------------------------------------------------------------------
+
 
 1. **Clone the repository:**
 
