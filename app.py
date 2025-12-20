@@ -8,6 +8,8 @@ import joblib
 import matplotlib.pyplot as plt
 from fpdf import FPDF
 import os
+import io
+import streamlit as st
 
 #---------------------------------------------------------------------------------------------#
 # --- Load trained models ---
@@ -457,13 +459,10 @@ def save_pdf(results_dict):
     pdf.ln(10)
     for disease, risk in results_dict.items():
         pdf.cell(200, 10, txt=f"{disease} Risk: {risk*100:.1f}%", ln=True)
-    
-    # Save to a bytes object instead of a file
-    from io import BytesIO
-    pdf_bytes = BytesIO()
-    pdf.output(pdf_bytes)
-    pdf_bytes.seek(0)
-    return pdf_bytes
+
+    # Use dest='S' to get PDF as string
+    pdf_str = pdf.output(dest='S').encode('latin1')  # bytes
+    return pdf_str
 
 if results:
     pdf_bytes = save_pdf(results)
