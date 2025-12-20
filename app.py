@@ -528,3 +528,28 @@ def save_pdf(results_dict, patient_info):
     # Output PDF as bytes
     pdf_bytes = pdf.output(dest='S').encode('latin1')
     return pdf_bytes
+
+# ---------------------------------------------------------------------------------------------
+# --- Generate PDF & Download Button ---
+# ---------------------------------------------------------------------------------------------
+if results:
+    # Gather patient info
+    patient_info = {
+        "age": age,
+        "gender": gender,
+        "bmi": bmi,
+        "smoking": smoking_status,
+        "alcohol": alcohol_consumption,
+        "activity": physical_activity
+    }
+
+    # Generate PDF bytes
+    pdf_bytes = save_pdf(results, patient_info)
+
+    # Streamlit download button
+    st.download_button(
+        label="Download Report as PDF",
+        data=pdf_bytes,
+        file_name="health_risk_report.pdf",
+        mime="application/pdf"
+    )
