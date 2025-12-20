@@ -566,12 +566,10 @@ if results:
 # --- Setup Google Sheets credentials from Streamlit Secrets ---
 
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
-creds_dict = st.secrets["gcp_service_account"]["json"]
-import json
-creds_dict = json.loads(creds_dict)
+creds_dict = json.loads(st.secrets["gcp_service_account"]["json"])
 creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
 client = gspread.authorize(creds)
-sheet = client.open("Patient Feedback").sheet1  # make sure name matches exactly
+sheet = client.open("Patient Feedback").sheet1
 
 # --- Collect patient initials (minimal identifier) ---
 
