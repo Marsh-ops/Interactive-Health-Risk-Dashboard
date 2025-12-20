@@ -4,6 +4,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.52.2-orange)
 
+LIVE DEMO: https://interactive-health-risk-dashboard-b5pwcdpolpahkzxevtroce.streamlit.app/
 ------------------------------------------------------------------------------
 ## Overview
 
