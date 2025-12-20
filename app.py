@@ -7,15 +7,18 @@ import pandas as pd
 import joblib
 import matplotlib.pyplot as plt
 from fpdf import FPDF
+import os
 
 #---------------------------------------------------------------------------------------------#
 # --- Load trained models ---
 #---------------------------------------------------------------------------------------------#
 
-diabetes_model = joblib.load("diabetes_model.pkl")
-ihd_model = joblib.load("ihd_model.pkl")
-stroke_model = joblib.load("stroke_model.pkl")
-covid_model = joblib.load("covid_model.pkl")
+MODEL_PATH = "models"
+
+diabetes_model = joblib.load(os.path.join(MODEL_PATH, "diabetes_model.pkl"))
+ihd_model = joblib.load(os.path.join(MODEL_PATH, "ihd_model.pkl"))
+stroke_model = joblib.load(os.path.join(MODEL_PATH, "stroke_model.pkl"))
+covid_model = joblib.load(os.path.join(MODEL_PATH, "covid_model.pkl"))
 
 #---------------------------------------------------------------------------------------------#
 # --- Model accuracy ---
