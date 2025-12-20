@@ -562,37 +562,55 @@ if results:
 # --- Patient Feedback Survey ---
 # ---------------------------------------------------------------------------------------------
 
-# Ask patient for initials (or first name initial + last name initial)
-patient_initials = st.text_input("Please enter your initials", max_chars=5)
 
-# Optional: only show feedback after they enter initials
-if patient_initials:
-    st.subheader("Optional Feedback")
-    st.write("We'd love to hear your thoughts on this tool. Your responses are anonymous and will help us improve it.")
+# --- Setup Google Sheets credentials from Streamlit Secrets ---
 
-    easy_complete = st.radio("Was the questionnaire easy to complete?", ["Yes", "No", "Somewhat"])
-    report_helpful = st.radio("Did you find the report helpful for your discussion with your GP?", ["Yes", "No", "Somewhat"])
-    suggestions = st.text_area("Any suggestions for improvement? (Optional)")
+scope = ["https://www.googleapis.com/auth/spreadsheets"]
 
-    # Setup Google Sheets connection
-    import gspread
-    from google.oauth2.service_account import Credentials
+# Load the JSON from Streamlit secrets
+# Make sure the private key in st.secrets["gcp_service_account"]["json"] uses \\n for line breaks
+creds_dict = json.loads(st.secrets["gcp_service_account"]["json"])
+creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+client = gspread.authorize(creds)
 
-    scope = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds_dict = json.loads(st.secrets["gcp_service_account"]["json"])
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("Patient Feedback").sheet1
+# Open the sheet
+sheet = client.open("Patient Feedback").sheet1
 
-    # Collect feedback
-    feedback_data = [
-        str(datetime.now()),  # Timestamp
-        patient_initials,
-        easy_complete,
-        report_helpful,
-        suggestions
-    ]
+# --- Collect patient initials (minimal identifier) ---
 
-    # Append to Google Sheet
-    sheet.append_row(feedback_data)
-    st.success("Thank you! Your feedback has been recorded.")
+st.subheader("Patient Feedback (Optional)")
+
+patient_initials = st.text_input("Your initials (for reference only)")
+
+# --- Questionnaire feedback ---
+
+easy_complete = st.radio(
+    "Was the questionnaire easy to complete?", 
+    ["Yes", "No", "Somewhat"]
+)
+report_helpful = st.radio(
+    "Did you find the report helpful for your discussion with your GP?", 
+    ["Yes", "No", "Somewhat"]
+)
+suggestions = st.text_area("Any suggestions for improvement? (Optional)")
+
+# ---------------------------------------------------------------------------------------------
+# --- Patient submit Feedback ---
+# ---------------------------------------------------------------------------------------------
+
+if st.button("Submit Feedback"):
+    if not patient_initials:
+        st.warning("Please enter your initials so we can reference your response.")
+    else:
+        feedback_data = [
+            str(datetime.now()),  # Timestamp
+            patient_initials,
+            easy_complete,
+            report_helpful,
+            suggestions
+        ]
+        try:
+            sheet.append_row(feedback_data)
+            st.success("Thank you! Your feedback has been recorded.")
+        except Exception as e:
+            st.error(f"Error submitting feedback: {e}")
