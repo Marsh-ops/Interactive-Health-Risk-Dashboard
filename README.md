@@ -43,10 +43,9 @@ It leverages **machine learning models** to estimate probabilities of these cond
 ------------------------------------------------------------------------------
 ## Installation & Setup
 
-
+```bash
 1. **Clone the repository:**
 
-```bash
 git clone https://github.com/yourusername/Interactive-Health-Risk-Dashboard.git
 cd Interactive-Health-Risk-Dashboard
 
@@ -63,4 +62,3 @@ pip install -r requirements.txt
 4. Run the app locally:
 
 streamlit run app.py
-
