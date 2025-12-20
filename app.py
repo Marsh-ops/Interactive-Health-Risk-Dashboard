@@ -11,6 +11,8 @@ import os
 import io
 import streamlit as st
 from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 
 #---------------------------------------------------------------------------------------------#
 # --- Load trained models ---
@@ -532,6 +534,7 @@ def save_pdf(results_dict, patient_info):
 # ---------------------------------------------------------------------------------------------
 # --- Generate PDF & Download Button ---
 # ---------------------------------------------------------------------------------------------
+
 if results:
     # Gather patient info
     patient_info = {
@@ -553,3 +556,41 @@ if results:
         file_name="health_risk_report.pdf",
         mime="application/pdf"
     )
+
+# ---------------------------------------------------------------------------------------------
+# --- Patient Feedback Survey ---
+# ---------------------------------------------------------------------------------------------
+
+# Ask patient for initials (or first name initial + last name initial)
+patient_initials = st.text_input("Please enter your initials", max_chars=5)
+
+# Optional: only show feedback after they enter initials
+if patient_initials:
+    st.subheader("Optional Feedback")
+    st.write("We'd love to hear your thoughts on this tool. Your responses are anonymous and will help us improve it.")
+
+    easy_complete = st.radio("Was the questionnaire easy to complete?", ["Yes", "No", "Somewhat"])
+    report_helpful = st.radio("Did you find the report helpful for your discussion with your GP?", ["Yes", "No", "Somewhat"])
+    suggestions = st.text_area("Any suggestions for improvement? (Optional)")
+
+    # Setup Google Sheets connection
+    import gspread
+    from google.oauth2.service_account import Credentials
+
+    scope = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = Credentials.from_service_account_file("service_account.json", scopes=scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("Patient Feedback").sheet1
+
+    # Collect feedback
+    feedback_data = [
+        str(datetime.now()),  # Timestamp
+        patient_initials,
+        easy_complete,
+        report_helpful,
+        suggestions
+    ]
+
+    # Append to Google Sheet
+    sheet.append_row(feedback_data)
+    st.success("Thank you! Your feedback has been recorded.")
