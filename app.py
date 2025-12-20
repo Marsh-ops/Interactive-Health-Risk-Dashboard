@@ -13,6 +13,7 @@ import streamlit as st
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
+import json
 
 #---------------------------------------------------------------------------------------------#
 # --- Load trained models ---
@@ -578,7 +579,8 @@ if patient_initials:
     from google.oauth2.service_account import Credentials
 
     scope = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file("service_account.json", scopes=scope)
+    creds_dict = json.loads(st.secrets["gcp_service_account"]["json"])
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     client = gspread.authorize(creds)
     sheet = client.open("Patient Feedback").sheet1
 
