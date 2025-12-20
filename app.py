@@ -567,13 +567,14 @@ if results:
 
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# Load the JSON from Streamlit secrets
-# Make sure the private key in st.secrets["gcp_service_account"]["json"] uses \\n for line breaks
-creds_dict = json.loads(st.secrets["gcp_service_account"]["json"])
+# Make sure your service account JSON is stored as a single string in st.secrets
+# and that the private_key uses \\n instead of actual newlines
+creds_json_str = st.secrets["gcp_service_account"]["json"]
+creds_dict = json.loads(creds_json_str)   # <-- now creds_dict is defined
 creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-client = gspread.authorize(creds)
 
-# Open the sheet
+# Authorize gspread client
+client = gspread.authorize(creds)
 sheet = client.open("Patient Feedback").sheet1
 
 # --- Collect patient initials (minimal identifier) ---
