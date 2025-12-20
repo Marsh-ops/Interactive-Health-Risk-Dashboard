@@ -567,10 +567,10 @@ if results:
 
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# Load the JSON string from secrets
-creds_dict = json.loads(st.secrets["gcp_service_account"])
-creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+# st.secrets["gcp_service_account"] is already a dictionary
+creds_dict = st.secrets["gcp_service_account"]
 
+creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
 client = gspread.authorize(creds)
 sheet = client.open("Patient Feedback").sheet1
 
