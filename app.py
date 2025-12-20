@@ -457,16 +457,19 @@ def save_pdf(results_dict):
     pdf.ln(10)
     for disease, risk in results_dict.items():
         pdf.cell(200, 10, txt=f"{disease} Risk: {risk*100:.1f}%", ln=True)
-    file_name = "health_risk_report.pdf"
-    pdf.output(file_name)
-    return file_name
+    
+    # Save to a bytes object instead of a file
+    from io import BytesIO
+    pdf_bytes = BytesIO()
+    pdf.output(pdf_bytes)
+    pdf_bytes.seek(0)
+    return pdf_bytes
 
-if results and st.button("Download Report as PDF"):
-    pdf_file = save_pdf(results)
-    with open(pdf_file, "rb") as f:
-        st.download_button(
-            label="Download PDF",
-            data=f,
-            file_name="health_risk_report.pdf",
-            mime="application/pdf"
-        )
+if results:
+    pdf_bytes = save_pdf(results)
+    st.download_button(
+        label="Download Report as PDF",
+        data=pdf_bytes,
+        file_name="health_risk_report.pdf",
+        mime="application/pdf"
+    )
