@@ -567,10 +567,16 @@ if results:
 
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# st.secrets["gcp_service_account"] is already a dictionary
-creds_dict = st.secrets["gcp_service_account"]
+# Load JSON string from secrets
+creds_dict = json.loads(st.secrets["gcp_service_account"]["json"])
 
+# Fix the private key by converting literal "\n" into real newlines
+creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+
+# Create credentials
 creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+
+# Authorize gspread
 client = gspread.authorize(creds)
 sheet = client.open("Patient Feedback").sheet1
 
