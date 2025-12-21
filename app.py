@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from fpdf import FPDF
 import os
 import io
-import streamlit as st
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
