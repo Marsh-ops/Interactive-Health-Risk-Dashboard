@@ -11,7 +11,7 @@ import os
 import io
 from datetime import datetime
 import gspread
-from google.oauth2.service_account import Credentials
+from google.oauth2 import service_account
 import json
 
 #---------------------------------------------------------------------------------------------#
@@ -563,9 +563,14 @@ if results:
 
 # --- Setup Google Sheets credentials from Streamlit Secrets ---
 creds_info = json.loads(st.secrets["gcp_service_account"]["json"])
+
+# Initialize credentials from the service account info
 creds = service_account.Credentials.from_service_account_info(creds_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
 
+# Authorize with gspread using the credentials
 client = gspread.authorize(creds)
+
+# Open the spreadsheet by name and get the first sheet
 sheet = client.open("Patient Feedback").sheet1
 
 # --- Collect patient initials (minimal identifier) ---
