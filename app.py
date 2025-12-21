@@ -463,7 +463,7 @@ if results:
     st.bar_chart(risk_df.set_index('Disease'))
 
 #---------------------------------------------------------------------------------------------#
-# --- PDF Export ---
+# --- PDF Generation ---
 #---------------------------------------------------------------------------------------------#
 
 # Disease descriptions
@@ -504,6 +504,16 @@ def save_pdf(results_dict, patient_info):
 
     # Disease sections
     for disease, risk in results_dict.items():
+
+            # --- Divider line above each disease ---
+        y = pdf.get_y()
+        pdf.set_draw_color(180, 180, 180)  # light grey
+        pdf.line(10, y, 200, y)
+        pdf.ln(4)
+
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 8, txt=f"{disease} Risk: {risk*100:.1f}%", ln=True)
+
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(200, 8, txt=f"{disease} Risk: {risk*100:.1f}%", ln=True)
         
@@ -623,3 +633,5 @@ with st.form(key="feedback_form"):
             st.session_state.feedback_submitted = True  # Update the state to disable the button
         except Exception as e:
             st.error(f"Error sending feedback: {e}")
+
+            
