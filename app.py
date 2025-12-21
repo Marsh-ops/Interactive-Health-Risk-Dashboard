@@ -13,6 +13,9 @@ from datetime import datetime
 import gspread
 from google.oauth2 import service_account
 import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 #---------------------------------------------------------------------------------------------#
 # --- Load trained models ---
@@ -561,58 +564,54 @@ if results:
 # --- Patient Feedback Survey ---
 # ---------------------------------------------------------------------------------------------
 
-# --- Setup Google Sheets credentials from Streamlit Secrets ---
-creds_info = json.loads(st.secrets["gcp_service_account"]["json"])
+st.subheader("Patient Feedback")
 
-# Initialize credentials from the service account info
-creds = service_account.Credentials.from_service_account_info(creds_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+with st.form(key="feedback_form"):
+    # Feedback Input: Rating Scale (e.g., 1-5)
+    feedback_rating = st.slider("Rate your experience (1 = Poor, 5 = Excellent)", 1, 5, 3)
+    
+    # Feedback Input: Free-text comments
+    feedback_comments = st.text_area("Leave any additional comments or suggestions.")
+    
+    # Submit button
+    submit_feedback = st.form_submit_button(label="Submit Feedback")
+    
+    if submit_feedback:
+        # Collect feedback and prepare data to send to your email
+        feedback_data = {
+            "Rating": feedback_rating,
+            "Comments": feedback_comments,
+            "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        # Directly use email credentials
+        SENDER_EMAIL = "Marshdevops@gmail.com"  # Your email
+        RECEIVER_EMAIL = "mh_rossi@hotmail.com"  # Your personal email
+        SENDER_PASSWORD = "roug chon mjxt ltqw"  # App-specific password
+        
+        # Create the email message
+        message = MIMEMultipart()
+        message["From"] = SENDER_EMAIL
+        message["To"] = RECEIVER_EMAIL
+        message["Subject"] = f"Patient Feedback - {feedback_data['Date']}"
+        
+        # Prepare the email body (feedback)
+        body = f"""
+        Feedback submitted on: {feedback_data['Date']}
+        Rating: {feedback_data['Rating']}
+        Comments:
+        {feedback_data['Comments']}
+        """
+        
+        # Attach the body to the email
+        message.attach(MIMEText(body, "plain"))
 
-# Authorize with gspread using the credentials
-client = gspread.authorize(creds)
-
-# Try to open the Google Sheet by name ---------------------------------------------------------------------------------------------------TEST
-try:
-    sheet = client.open("Patient Feedback").sheet1
-    print("Successfully opened the sheet!")
-except Exception as e:
-    print(f"Error opening the sheet: {e}")
-
-# Open the spreadsheet by name and get the first sheet
-sheet = client.open("Patient Feedback").sheet1
-
-# --- Collect patient initials (minimal identifier) ---
-st.subheader("Patient Feedback (Optional)")
-
-patient_initials = st.text_input("Your initials (for reference only)")
-
-# --- Questionnaire feedback ---
-easy_complete = st.radio(
-    "Was the questionnaire easy to complete?", 
-    ["Yes", "No", "Somewhat"]
-)
-report_helpful = st.radio(
-    "Did you find the report helpful for your discussion with your GP?", 
-    ["Yes", "No", "Somewhat"]
-)
-suggestions = st.text_area("Any suggestions for improvement? (Optional)")
-
-# ---------------------------------------------------------------------------------------------
-# --- Patient submit Feedback ---
-# ---------------------------------------------------------------------------------------------
-
-if st.button("Submit Feedback"):
-    if not patient_initials:
-        st.warning("Please enter your initials so we can reference your response.")
-    else:
-        feedback_data = [
-            str(datetime.now()),  # Timestamp
-            patient_initials,
-            easy_complete,
-            report_helpful,
-            suggestions
-        ]
+        # Send email via SMTP
         try:
-            sheet.append_row(feedback_data)
-            st.success("Thank you! Your feedback has been recorded.")
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()  # Secure the connection
+                server.login(SENDER_EMAIL, SENDER_PASSWORD)
+                server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, message.as_string())
+            st.success("Feedback submitted successfully! Thank you for your input.")
         except Exception as e:
-            st.error(f"Error submitting feedback: {e}")
+            st.error(f"Error sending feedback: {e}")
