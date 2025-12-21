@@ -562,23 +562,19 @@ if results:
 # --- Patient Feedback Survey ---
 # ---------------------------------------------------------------------------------------------
 
-
 # --- Setup Google Sheets credentials from Streamlit Secrets ---
+creds_info = json.loads(st.secrets["gcp_service_account"]["json"])
+creds = service_account.Credentials.from_service_account_info(creds_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
 
-scope = ["https://www.googleapis.com/auth/spreadsheets"]
-
-creds = Credentials.from_service_account_file("service_account.json", scopes=scope)
 client = gspread.authorize(creds)
 sheet = client.open("Patient Feedback").sheet1
 
 # --- Collect patient initials (minimal identifier) ---
-
 st.subheader("Patient Feedback (Optional)")
 
 patient_initials = st.text_input("Your initials (for reference only)")
 
 # --- Questionnaire feedback ---
-
 easy_complete = st.radio(
     "Was the questionnaire easy to complete?", 
     ["Yes", "No", "Somewhat"]
