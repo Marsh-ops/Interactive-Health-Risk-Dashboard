@@ -570,6 +570,13 @@ creds = service_account.Credentials.from_service_account_info(creds_info, scopes
 # Authorize with gspread using the credentials
 client = gspread.authorize(creds)
 
+# Try to open the Google Sheet by name ---------------------------------------------------------------------------------------------------TEST
+try:
+    sheet = client.open("Patient Feedback").sheet1
+    print("Successfully opened the sheet!")
+except Exception as e:
+    print(f"Error opening the sheet: {e}")
+
 # Open the spreadsheet by name and get the first sheet
 sheet = client.open("Patient Feedback").sheet1
 
