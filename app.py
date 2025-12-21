@@ -525,12 +525,10 @@ def save_pdf(results_dict, patient_info):
         
         pdf.set_font("Arial", '', 12)
         pdf.cell(200, 6, txt=f"Risk Category: {category_text}", ln=True)
-        pdf.multi_cell(0, 6, txt=f"Tip: {tip_text}")
-        
-        # Add disease description
         description_text = disease_descriptions.get(disease, "No description available.")
         pdf.multi_cell(0, 6, txt=f"Description: {description_text}")
         pdf.ln(2)
+        pdf.multi_cell(0, 6, txt=f"Tip: {tip_text}")
 
     # Disclaimer
     pdf.ln(5)
