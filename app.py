@@ -566,6 +566,10 @@ if results:
 
 st.subheader("Patient Feedback")
 
+# Track feedback submission status in session_state
+if "feedback_submitted" not in st.session_state:
+    st.session_state.feedback_submitted = False  # Initialize submission state
+
 with st.form(key="feedback_form"):
     # Feedback Input: Rating Scale (e.g., 1-5)
     feedback_rating = st.slider("Rate your experience (1 = Poor, 5 = Excellent)", 1, 5, 3)
@@ -574,7 +578,10 @@ with st.form(key="feedback_form"):
     feedback_comments = st.text_area("Leave any additional comments or suggestions.")
     
     # Submit button
-    submit_feedback = st.form_submit_button(label="Submit Feedback")
+    submit_feedback = st.form_submit_button(
+        label="Submit Feedback",
+        disabled=st.session_state.feedback_submitted  # Disable button if feedback has been submitted
+    )
     
     if submit_feedback:
         # Collect feedback and prepare data to send to your email
@@ -613,5 +620,6 @@ with st.form(key="feedback_form"):
                 server.login(SENDER_EMAIL, SENDER_PASSWORD)
                 server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, message.as_string())
             st.success("Feedback submitted successfully! Thank you for your input.")
+            st.session_state.feedback_submitted = True  # Update the state to disable the button
         except Exception as e:
             st.error(f"Error sending feedback: {e}")
