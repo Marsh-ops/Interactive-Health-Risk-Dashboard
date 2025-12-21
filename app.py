@@ -13,7 +13,6 @@ from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
 import json
-from google.oauth2 import service_account
 
 #---------------------------------------------------------------------------------------------#
 # --- Load trained models ---
