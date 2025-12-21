@@ -610,9 +610,11 @@ with st.form(key="feedback_form"):
         }
         
         # Directly use email credentials
-        SENDER_EMAIL = "Marshdevops@gmail.com"  # Your email
-        RECEIVER_EMAIL = "mh_rossi@hotmail.com"  # Your personal email
-        SENDER_PASSWORD = "roug chon mjxt ltqw"  # App-specific password
+        SENDER_EMAIL = st.secrets["email"]["sender"]
+        RECEIVER_EMAIL = st.secrets["email"]["receiver"]
+        SENDER_PASSWORD = st.secrets["email"]["password"]
+        SMTP_SERVER = st.secrets["email"]["smtp_server"]
+        SMTP_PORT = st.secrets["email"]["smtp_port"]
         
         # Create the email message
         message = MIMEMultipart()
@@ -633,7 +635,7 @@ with st.form(key="feedback_form"):
 
         # Send email via SMTP
         try:
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
                 server.starttls()  # Secure the connection
                 server.login(SENDER_EMAIL, SENDER_PASSWORD)
                 server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, message.as_string())
