@@ -523,12 +523,25 @@ def save_pdf(results_dict, patient_info):
                 tip_text = tip
                 break
         
-        pdf.set_font("Arial", '', 12)
-        pdf.cell(200, 6, txt=f"Risk Category: {category_text}", ln=True)
-        description_text = disease_descriptions.get(disease, "No description available.")
-        pdf.multi_cell(0, 6, txt=f"Description: {description_text}")
-        pdf.ln(2)
-        pdf.multi_cell(0, 6, txt=f"Tip: {tip_text}")
+            # Disease title
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 8, disease, ln=True)
+
+    # Risk % and Category on same line
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(95, 8, f"Risk: {risk*100:.1f}%")
+    pdf.cell(0, 8, f"Category: {category_text}", ln=True)
+
+    # Disease description (under disease)
+    description_text = disease_descriptions.get(disease, "No description available.")
+    pdf.set_font("Arial", 'I', 11)
+    pdf.multi_cell(0, 6, description_text)
+
+    # Tip
+    pdf.set_font("Arial", '', 12)
+    pdf.multi_cell(0, 6, f"Tip: {tip_text}")
+
+    pdf.ln(3)
 
     # Disclaimer
     pdf.ln(5)
