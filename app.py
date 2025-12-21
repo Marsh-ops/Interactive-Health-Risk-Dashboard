@@ -474,28 +474,29 @@ disease_descriptions = {
     "COVID-19": "COVID-19: Viral infection that can affect respiratory and other systems."
 }
 
-def save_pdf(results_dict, patient_info):
+def normalize_disease_name(name: str) -> str:
     """
-    Generate a detailed Patient Health Risk Report PDF.
+    Removes ' Risk' suffix or trailing whitespace to match disease_descriptions keys.
+    """
+    return name.replace(" Risk", "").strip()
 
-    Parameters:
-    - results_dict: dict, disease -> risk probability (0-1)
-    - patient_info: dict, e.g. {"age":30, "gender":"Male", "bmi":25.0, "smoking":0, "alcohol":1, "activity":2}
-    """
+def save_pdf(results_dict, patient_info):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Patient Health Risk Report", ln=True, align="C")
-    pdf.ln(5)
     
-    # Patient info
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(200, 8, txt=f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
-    pdf.cell(200, 8, txt=f"Age: {patient_info.get('age', 'N/A')} | Gender: {patient_info.get('gender', 'N/A')} | BMI: {patient_info.get('bmi', 'N/A'):.1f}", ln=True)
-    pdf.cell(200, 8, txt=f"Smoking: {patient_info.get('smoking', 'N/A')} | Alcohol: {patient_info.get('alcohol', 'N/A')} | Physical Activity: {patient_info.get('activity', 'N/A')}", ln=True)
+    # Title
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "Patient Health Risk Report", ln=True, align="C")
     pdf.ln(5)
 
-    # Define risk categories and tips
+    # Patient info
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 8, f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
+    pdf.cell(0, 8, f"Age: {patient_info.get('age', 'N/A')} | Gender: {patient_info.get('gender', 'N/A')} | BMI: {patient_info.get('bmi', 'N/A'):.1f}", ln=True)
+    pdf.cell(0, 8, f"Smoking: {patient_info.get('smoking', 'N/A')} | Alcohol: {patient_info.get('alcohol', 'N/A')} | Physical Activity: {patient_info.get('activity', 'N/A')}", ln=True)
+    pdf.ln(5)
+
+    # Risk categories
     risk_categories = [
         (0.0, 0.1, "Low", "Maintain your healthy lifestyle."),
         (0.1, 0.2, "Moderate", "Consider improving diet, exercise, and regular check-ups."),
@@ -504,50 +505,42 @@ def save_pdf(results_dict, patient_info):
 
     # Disease sections
     for disease, risk in results_dict.items():
-
-        # --- Divider line above each disease ---
+        # Divider
         y = pdf.get_y()
-        pdf.set_draw_color(180, 180, 180)  # light grey
+        pdf.set_draw_color(180, 180, 180)
         pdf.line(10, y, 200, y)
         pdf.ln(4)
 
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 8, txt=f"{disease} Risk: {risk*100:.1f}%", ln=True)
-        
         # Determine risk category
-        category_text = "Unknown"
-        tip_text = ""
+        category_text, tip_text = "Unknown", ""
         for lower, upper, category, tip in risk_categories:
             if lower <= risk < upper:
-                category_text = category
-                tip_text = tip
+                category_text, tip_text = category, tip
                 break
-        
-            # Disease title
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 8, disease, ln=True)
 
-    # Risk % and Category on same line
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(95, 8, f"Risk: {risk*100:.1f}%")
-    pdf.cell(0, 8, f"Category: {category_text}", ln=True)
+        # Disease + Risk
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(120, 8, disease)
+        pdf.cell(0, 8, f"Risk: {risk*100:.1f}%", ln=True)
 
-    # Disease description (under disease)
-    description_text = disease_descriptions.get(disease, "No description available.")
-    pdf.set_font("Arial", 'I', 11)
-    pdf.multi_cell(0, 6, description_text)
+        # Description
+        description_text = disease_descriptions.get(disease, "No description available.")
+        pdf.set_font("Arial", 'I', 11)
+        pdf.multi_cell(0, 6, description_text)
 
-    # Tip
-    pdf.set_font("Arial", '', 12)
-    pdf.multi_cell(0, 6, f"Tip: {tip_text}")
+        # Tip
+        pdf.set_font("Arial", '', 12)
+        pdf.multi_cell(0, 6, f"Tip: {tip_text}")
 
-    pdf.ln(3)
+        pdf.ln(3)
 
     # Disclaimer
     pdf.ln(5)
     pdf.set_font("Arial", 'I', 10)
-    pdf.multi_cell(0, 5, txt="Disclaimer: This report is for informational purposes only and is not a medical diagnosis. Please consult a licensed healthcare professional for personalized advice.")
-    
+    pdf.multi_cell(0, 5, "Disclaimer: This report is for informational purposes only and is not a medical diagnosis. Please consult a licensed healthcare professional for personalized advice.")
+
+    return pdf.output(dest='S').encode('latin1')
+
     # Output PDF as bytes
     pdf_bytes = pdf.output(dest='S').encode('latin1')
     return pdf_bytes
