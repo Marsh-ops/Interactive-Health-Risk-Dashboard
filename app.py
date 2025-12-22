@@ -491,9 +491,25 @@ def save_pdf(results_dict, patient_info):
 
     # Patient info
     pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 8, f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
+    pdf.cell(0, 8, f"Date: {datetime.now().strftime('%d-%m-%y')}", ln=True)
     pdf.cell(0, 8, f"Age: {patient_info.get('age', 'N/A')} | Gender: {patient_info.get('gender', 'N/A')} | BMI: {patient_info.get('bmi', 'N/A'):.1f}", ln=True)
     pdf.cell(0, 8, f"Smoking: {patient_info.get('smoking', 'N/A')} | Alcohol: {patient_info.get('alcohol', 'N/A')} | Physical Activity: {patient_info.get('activity', 'N/A')}", ln=True)
+    pdf.cell(0, 8, f"All inputs are patient-reported unless otherwise stated.", ln=True)
+
+    # --- Elevated Risk Summary ---
+    elevated_diseases = []
+
+    for disease, risk in results_dict.items():
+        category, _ = interpret_risk(risk)
+        if category in ["Moderate", "High", "Very High"]:
+            elevated_diseases.append(disease)
+
+    if elevated_diseases:
+        pdf.ln(2)
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 8, "Elevated risk flagged for:", ln=True)
+        pdf.set_font("Arial", '', 12)
+        pdf.multi_cell(0, 6, ", ".join(elevated_diseases))
     pdf.ln(5)
 
     # Risk categories
@@ -534,12 +550,29 @@ def save_pdf(results_dict, patient_info):
 
         pdf.ln(3)
 
+    # Divider line above patient concerns
+    y = pdf.get_y()
+    pdf.set_draw_color(180, 180, 180)  # light grey
+    pdf.line(10, y, 200, y)
+    pdf.ln(3)
+    
+    # Patient concerns / questions
+    pdf.ln(3)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 6, "Patient concerns or questions:", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.multi_cell(0, 6, "______________________________________________________________\n" * 3) # change * 3 to change how many lines
+
+    # Suggested follow-up
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 6, "Suggested follow-up:", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 6, "[ ] 3 months   [ ] 6 months   [ ] 12 months", ln=True)
+
     # Disclaimer
     pdf.ln(5)
     pdf.set_font("Arial", 'I', 10)
     pdf.multi_cell(0, 5, "Disclaimer: This report is for informational purposes only and is not a medical diagnosis. Please consult a licensed healthcare professional for personalized advice.")
-
-    return pdf.output(dest='S').encode('latin1')
 
     # Output PDF as bytes
     pdf_bytes = pdf.output(dest='S').encode('latin1')
