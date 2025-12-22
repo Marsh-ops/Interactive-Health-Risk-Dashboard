@@ -16,6 +16,8 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import numpy as np
+from sklearn.impute import SimpleImputer
 
 #---------------------------------------------------------------------------------------------#
 # --- Load trained models ---
@@ -27,6 +29,36 @@ diabetes_model = joblib.load(os.path.join(MODEL_PATH, "diabetes_model.pkl"))
 ihd_model = joblib.load(os.path.join(MODEL_PATH, "ihd_model.pkl"))
 stroke_model = joblib.load(os.path.join(MODEL_PATH, "stroke_model.pkl"))
 covid_model = joblib.load(os.path.join(MODEL_PATH, "covid_model.pkl"))
+
+with open("models/diabetes_feature_means.json") as f:
+    diabetes_feature_means = json.load(f)
+
+with open("models/ihd_feature_means.json") as f:
+    ihd_feature_means = json.load(f)
+
+with open("models/stroke_feature_means.json") as f:
+    stroke_feature_means = json.load(f)
+
+with open("models/covid_feature_means.json") as f:
+    covid_feature_means = json.load(f)
+
+# -----------------------------------------------------------------------------------
+# --- Function: Safe model prediction with NaN handling ---
+# -----------------------------------------------------------------------------------
+
+def safe_predict(model, input_df, feature_means):
+    """
+    Fill NaNs with training feature means and ensure the DataFrame matches model features.
+    """
+    # Reindex to model's expected columns
+    input_df = input_df.reindex(columns=model.feature_names_in_, fill_value=np.nan)
+
+    # Fill missing values with training means
+    for col in model.feature_names_in_:
+        input_df[col] = input_df[col].fillna(feature_means[col])
+
+    # Predict
+    return model.predict_proba(input_df)[:, 1][0]
 
 #---------------------------------------------------------------------------------------------#
 # --- Model accuracy ---
@@ -45,55 +77,67 @@ model_accuracies = {
 
 st.sidebar.header("Patient Information")
 
-age = st.sidebar.slider("Age", 0, 100, 30, key="age")
+# Age input
+age_na = st.sidebar.checkbox("Age: N/A or Unknown", value=False, key="age_na")
+age = np.nan if age_na else st.sidebar.slider("Age", 0, 100, 30, key="age")
+age_unknown = int(age_na)
+
+# Gender input
 gender = st.sidebar.selectbox("Gender", ["Female", "Male"], key="gender")
 gender_binary = 1 if gender == "Male" else 0
 
 st.sidebar.divider()
 
-#---------------------------------------------------------------------------------------------#
-# --- Sidebar: General Health Metrics ---
-#---------------------------------------------------------------------------------------------#
-
 # --- BMI / Weight & Height ---
 st.sidebar.markdown("### BMI / Weight & Height")
 
-bmi_known = st.sidebar.checkbox("I know my BMI", value=False, key="bmi_known")
+# Check if BMI is known or not
+bmi_na = st.sidebar.checkbox("I know my BMI", value=False, key="bmi_na")
 
-if bmi_known:
-    # User enters BMI directly
-    bmi = st.sidebar.number_input("BMI (Body Mass Index)", 10.0, 70.0, 25.0, key="bmi")
-    weight = None
-    height = None
+# If the user knows their BMI, prompt them to input it directly
+if bmi_na:
+    bmi = st.sidebar.number_input("BMI", 10.0, 50.0, 25.0, key="bmi")
+    bmi_unknown = 0  # BMI is provided
+    weight = None  # Disabling weight input
+    height = None  # Disabling height input
 else:
-    # User enters weight & height, BMI is calculated automatically
+    # Otherwise, allow them to input weight and height and calculate BMI
     weight = st.sidebar.number_input("Weight (kg)", 30.0, 200.0, 70.0, key="weight")
     height = st.sidebar.number_input("Height (cm)", 100.0, 220.0, 170.0, key="height")
-    bmi = weight / ((height / 100) ** 2)
+    bmi = weight / ((height / 100) ** 2) if weight and height else np.nan
+    bmi_unknown = 1 if np.isnan(bmi) else 0  # BMI is unknown if either weight or height is missing
 
-st.sidebar.caption(f"Calculated BMI: {bmi:.1f}")
+st.sidebar.caption(f"Calculated BMI: {bmi if bmi is not np.nan else 'N/A'}")
 
 # --- Blood Pressure ---
 st.sidebar.markdown("### Blood Pressure")
-bp_known = st.sidebar.checkbox("I know my Blood Pressure", value=False, key="bp_known")
+bp_na = st.sidebar.checkbox("I know my Blood Pressure", value=False, key="bp_na")
 
-if bp_known:
+# If the user knows their blood pressure, allow them to input systolic and diastolic
+if bp_na:
     systolic = st.sidebar.number_input("Systolic BP (mmHg)", 80, 250, 120, key="systolic")
     diastolic = st.sidebar.number_input("Diastolic BP (mmHg)", 50, 150, 80, key="diastolic")
+    systolic_unknown = 0  # Systolic is provided
+    diastolic_unknown = 0  # Diastolic is provided
 else:
-    st.sidebar.info("Default BP values will be used")
-    systolic = 120
-    diastolic = 80
+    # If not, set both systolic and diastolic to NaN
+    systolic = np.nan
+    diastolic = np.nan
+    systolic_unknown = 1  # Systolic is unknown
+    diastolic_unknown = 1  # Diastolic is unknown
 
 # --- Heart Rate ---
 st.sidebar.markdown("### Heart Rate")
-hr_known = st.sidebar.checkbox("I know my Heart Rate", value=False, key="hr_known")
+hr_na = st.sidebar.checkbox("I know my Heart Rate", value=False, key="hr_na")
 
-if hr_known:
+# If the user knows their heart rate, allow them to input it
+if hr_na:
     heart_rate = st.sidebar.number_input("Heart Rate (bpm)", 40, 200, 70, key="heart_rate")
+    heart_rate_unknown = 0  # Heart rate is provided
 else:
-    st.sidebar.info("Default heart rate will be used")
-    heart_rate = 70
+    # If not, set heart rate to NaN
+    heart_rate = np.nan
+    heart_rate_unknown = 1  # Heart rate is unknown
 
 # --- Smoking Status ---
 st.sidebar.markdown("### Smoking Status")
@@ -180,123 +224,144 @@ results = {}
 disease_inputs = {}
 
 #---------------------------------------------------------------------------------------------#
-# --- disease-specific ---
+# --- disease-specific (with missing value indicators and np.nan for unknowns) ---
 #---------------------------------------------------------------------------------------------#
 
 # -------------------- Diabetes --------------------
-
 if show_diabetes:
     st.subheader("Diabetes – Additional Information")
 
     # Pregnancies
     preg_na = st.checkbox("Number of pregnancies: N/A or Unknown")
-    if preg_na:
-        pregnancies = 0  # default
-    else:
-        pregnancies = st.number_input("Number of pregnancies", 0, 20, 0)
+    pregnancies = np.nan if preg_na else st.number_input("Number of pregnancies", 0, 20, 0)
+    pregnancies_unknown = int(preg_na)
 
     # Average Glucose
     glucose_na = st.checkbox("Average Glucose Level: N/A or Unknown")
-    if glucose_na:
-        avg_glucose = 100  # default
-    else:
-        avg_glucose = st.number_input("Average Glucose Level", 50, 300, 100)
+    avg_glucose = np.nan if glucose_na else st.number_input("Average Glucose Level", 50, 300, 100)
+    avg_glucose_unknown = int(glucose_na)
 
     # Skin Thickness
     skin_na = st.checkbox("Skin Thickness: N/A or Unknown")
-    if skin_na:
-        skin_thickness = 20  # default
-    else:
-        skin_thickness = st.number_input("Skin Thickness (mm)", 1, 99, 20)
+    skin_thickness = np.nan if skin_na else st.number_input("Skin Thickness (mm)", 1, 99, 20)
+    skin_thickness_unknown = int(skin_na)
 
     # Insulin
     insulin_na = st.checkbox("Insulin Level: N/A or Unknown")
-    if insulin_na:
-        insulin = 80  # default
-    else:
-        insulin = st.number_input("Insulin Level", 1, 900, 80)
+    insulin = np.nan if insulin_na else st.number_input("Insulin Level", 1, 900, 80)
+    insulin_unknown = int(insulin_na)
 
     # Diabetes Pedigree Function
     dpf_na = st.checkbox("Diabetes Pedigree Function: N/A or Unknown")
-    if dpf_na:
-        dpf = 0.5  # default
-    else:
-        dpf = st.number_input("Diabetes Pedigree Function", 0.0, 2.5, 0.5)
+    dpf = np.nan if dpf_na else st.number_input("Diabetes Pedigree Function", 0.0, 2.5, 0.5)
+    dpf_unknown = int(dpf_na)
 
     disease_inputs["diabetes"] = {
         "pregnancies": pregnancies,
+        "pregnancies_unknown": pregnancies_unknown,
         "avg_glucose": avg_glucose,
+        "avg_glucose_unknown": avg_glucose_unknown,
         "skin_thickness": skin_thickness,
+        "skin_thickness_unknown": skin_thickness_unknown,
         "insulin": insulin,
-        "dpf": dpf
+        "insulin_unknown": insulin_unknown,
+        "dpf": dpf,
+        "dpf_unknown": dpf_unknown
     }
 
 # -------------------- IHD --------------------
-
 if show_ihd:
     st.subheader("IHD – Additional Information")
 
     # Chest pain type
     chest_na = st.checkbox("Chest pain type: N/A or Unknown")
     if chest_na:
-        chest_pain = 0  # None
+        chest_pain = np.nan
     else:
-        chest_pain = st.selectbox(
-            "Chest pain type",
-            ["None", "Atypical", "Typical"]
-        )
-        chest_pain_map = {"None":0,"Atypical":1,"Typical":2}
+        chest_pain = st.selectbox("Chest pain type", ["None", "Atypical", "Typical"])
+        chest_pain_map = {"None": 0, "Atypical": 1, "Typical": 2}
         chest_pain = chest_pain_map[chest_pain]
+    chest_pain_unknown = int(chest_na)
 
     # Exercise-induced angina
     exercise_na = st.checkbox("Exercise-induced angina(chest pain): N/A or Unknown")
-    if exercise_na:
-        exercise_angina = 0
-    else:
-        exercise_angina = st.checkbox("Chest pain during exercise")
-    
+    exercise_angina = np.nan if exercise_na else int(st.checkbox("Chest pain during exercise"))
+    exercise_angina_unknown = int(exercise_na)
+
+    # Cholesterol Level
+    cholesterol_known = st.checkbox("I know my Cholesterol level", value=False, key="cholesterol_known")
+    cholesterol = np.nan if not cholesterol_known else st.number_input("Cholesterol Level (mg/dL)", 100, 400, 200, key="cholesterol")
+    cholesterol_unknown = int(not cholesterol_known)
+
     disease_inputs["ihd"] = {
         "chest_pain": chest_pain,
-        "exercise_angina": int(exercise_angina)
+        "chest_pain_unknown": chest_pain_unknown,
+        "exercise_angina": exercise_angina,
+        "exercise_angina_unknown": exercise_angina_unknown,
+        "cholesterol": cholesterol,
+        "cholesterol_unknown": cholesterol_unknown
     }
 
 # -------------------- Stroke --------------------
-
 if show_stroke:
     st.subheader("Stroke – Additional Information")
 
     # Previous TIA / mini-stroke
     tia_na = st.checkbox("Previous TIA / mini-stroke: N/A or Unknown")
-    if tia_na:
-        previous_tia = 0
-    else:
-        previous_tia = st.checkbox("Previous TIA / mini-stroke")
-
+    previous_tia = np.nan if tia_na else int(st.checkbox("Previous TIA / mini-stroke"))
+    previous_tia_unknown = int(tia_na)
 
     disease_inputs["stroke"] = {
-        "previous_tia": int(previous_tia)
+        "previous_tia": previous_tia,
+        "previous_tia_unknown": previous_tia_unknown
     }
 
-# -------------------- COVID-19 --------------------
+    disease_inputs["stroke"].update({
+        "systolic": systolic,
+        "systolic_unknown": systolic_unknown,
+        "diastolic": diastolic,
+        "diastolic_unknown": diastolic_unknown,
+        "bmi": bmi,
+        "bmi_unknown": bmi_unknown,
+        "smoking": smoking_encoded
+    })
 
+# -------------------- COVID-19 --------------------
 if show_covid:
     st.subheader("COVID-19 – Additional Information")
 
-    # Initialize covid dictionary in disease_inputs
     if "covid" not in disease_inputs:
         disease_inputs["covid"] = {}
 
     # Vaccinated
     vacc_na = st.checkbox("Vaccination status: N/A or Unknown")
-    if vacc_na:
-        disease_inputs["covid"]["vaccinated"] = 0
-    else:
-        disease_inputs["covid"]["vaccinated"] = int(st.checkbox("Vaccinated"))
+    vaccinated = np.nan if vacc_na else int(st.checkbox("Vaccinated"))
+    vaccinated_unknown = int(vacc_na)
 
     # Chronic conditions
-    disease_inputs["covid"]["diabetes"] = int(st.checkbox("History of diabetes"))  
-    disease_inputs["covid"]["hypertension"] = int(st.checkbox("History of hypertension"))  
-    disease_inputs["covid"]["heart_disease"] = int(st.checkbox("History of heart disease")) 
+    diabetes_history_na = st.checkbox("History of diabetes: N/A or Unknown")
+    diabetes_history = np.nan if diabetes_history_na else int(st.checkbox("History of diabetes"))
+    diabetes_history_unknown = int(diabetes_history_na)
+
+    hypertension_na = st.checkbox("History of hypertension: N/A or Unknown")
+    hypertension = np.nan if hypertension_na else int(st.checkbox("History of hypertension"))
+    hypertension_unknown = int(hypertension_na)
+
+    heart_disease_na = st.checkbox("History of heart disease: N/A or Unknown")
+    heart_disease = np.nan if heart_disease_na else int(st.checkbox("History of heart disease"))
+    heart_disease_unknown = int(heart_disease_na)
+
+    disease_inputs["covid"] = {
+        "vaccinated": vaccinated,
+        "vaccinated_unknown": vaccinated_unknown,
+        "diabetes": diabetes_history,
+        "diabetes_unknown": diabetes_history_unknown,
+        "hypertension": hypertension,
+        "hypertension_unknown": hypertension_unknown,
+        "heart_disease": heart_disease,
+        "heart_disease_unknown": heart_disease_unknown
+    }
+
 
 #---------------------------------------------------------------------------------------------#
 # --- Run Predictions ---
@@ -307,91 +372,72 @@ run_prediction = st.button("Calculate Risk")
 
 if run_prediction:
     results = {}  # Initialize results
+
     # -------------------- Diabetes --------------------
     if show_diabetes:
-        X_diabetes = pd.DataFrame([[
-            disease_inputs["diabetes"].get("pregnancies", 0),          # Pregnancies
-            disease_inputs["diabetes"].get("avg_glucose", 100),         # Glucose
-            (systolic + diastolic)/2,                                    # BloodPressure
-            disease_inputs["diabetes"].get("skin_thickness", 20),        # SkinThickness
-            disease_inputs["diabetes"].get("insulin", 80),              # Insulin
-            bmi,                                                         # BMI from sidebar
-            disease_inputs["diabetes"].get("dpf", 0.5),                 # DiabetesPedigreeFunction
-            age                                                          # Age from sidebar
-        ]], columns=[
-            'Pregnancies','Glucose','BloodPressure','SkinThickness',
-            'Insulin','BMI','DiabetesPedigreeFunction','Age'
-        ])
+        # Compute BP mean if both known
+        bp_mean = (systolic + diastolic) / 2 if not systolic_unknown and not diastolic_unknown else np.nan
 
-        diabetes_pred = diabetes_model.predict_proba(X_diabetes)[:,1][0]
-        results["Diabetes"] = diabetes_pred
+        # Build full feature dict with NaNs for missing columns
+        diabetes_features = {col: np.nan for col in diabetes_model.feature_names_in_}
+        diabetes_features.update({
+            "Pregnancies": disease_inputs["diabetes"].get("pregnancies", np.nan),
+            "Glucose": disease_inputs["diabetes"].get("avg_glucose", np.nan),
+            "BloodPressure": bp_mean,
+            "SkinThickness": disease_inputs["diabetes"].get("skin_thickness", np.nan),
+            "Insulin": disease_inputs["diabetes"].get("insulin", np.nan),
+            "BMI": bmi if not bmi_unknown else np.nan,
+            "DiabetesPedigreeFunction": disease_inputs["diabetes"].get("dpf", np.nan),
+            "Age": age if not age_unknown else np.nan
+        })
+
+        # Convert to DataFrame with model feature names to avoid mismatch
+        X_diabetes = pd.DataFrame([diabetes_features], columns=diabetes_model.feature_names_in_)
+        results["Diabetes"] = safe_predict(diabetes_model, X_diabetes, diabetes_feature_means)
 
     # -------------------- IHD --------------------
     if show_ihd:
-        X_ihd = pd.DataFrame([[
-            age,                                                        # age
-            gender_binary,                                              # sex
-            disease_inputs["ihd"].get("chest_pain", 0),                # chest_pain_type
-            systolic,                                                   # resting_bp_s
-            200,                                                        # cholesterol (default)
-            0,                                                          # fasting_blood_sugar (default)
-            0,                                                          # resting_ecg (default)
-            150,                                                        # max_heart_rate (default)
-            disease_inputs["ihd"].get("exercise_angina", 0),           # exercise_angina
-            1.0,                                                        # oldpeak (default)
-            1                                                           # st_slope (default)
-        ]], columns=[
-            'age','sex','chest_pain_type','resting_bp_s','cholesterol',
-            'fasting_blood_sugar','resting_ecg','max_heart_rate',
-            'exercise_angina','oldpeak','st_slope'
-        ])
+        ihd_features = {col: np.nan for col in ihd_model.feature_names_in_}
+        ihd_features.update({
+            "age": age if not age_unknown else np.nan,
+            "sex": gender_binary,
+            "chest_pain_type": disease_inputs["ihd"].get("chest_pain", np.nan),
+            "resting_bp_s": systolic if not systolic_unknown else np.nan,
+            "cholesterol": disease_inputs["ihd"].get("cholesterol", np.nan),
+            "exercise_angina": disease_inputs["ihd"].get("exercise_angina", np.nan)
+        })
 
-        ihd_pred = ihd_model.predict_proba(X_ihd)[:,1][0]
-        results["IHD"] = ihd_pred
+        X_ihd = pd.DataFrame([ihd_features], columns=ihd_model.feature_names_in_)
+        results["IHD"] = safe_predict(ihd_model, X_ihd, ihd_feature_means)
 
     # -------------------- Stroke --------------------
     if show_stroke:
-        X_stroke = pd.DataFrame([[
-            0,                                                          # id (default)
-            gender_binary,                                              # gender
-            age,                                                        # age
-            0,                                                          # hypertension (default)
-            0,                                                          # heart_disease (default)
-            1,                                                          # ever_married (default)
-            0,                                                          # work_type (default)
-            1,                                                          # Residence_type (default)
-            disease_inputs["stroke"].get("avg_glucose_level", 100),    # avg_glucose_level
-            bmi,                                                        # bmi
-            smoking_encoded                                              # smoking_status from sidebar
-        ]], columns=[
-            'id','gender','age','hypertension','heart_disease',
-            'ever_married','work_type','Residence_type',
-            'avg_glucose_level','bmi','smoking_status'
-        ])
+        stroke_features = {col: np.nan for col in stroke_model.feature_names_in_}
+        stroke_features.update({
+            "id": 0,
+            "gender": gender_binary,
+            "age": age if not age_unknown else np.nan,
+            "bmi": bmi if not bmi_unknown else np.nan,
+            "smoking_status": smoking_encoded
+        })
 
-        stroke_pred = stroke_model.predict_proba(X_stroke)[:,1][0]
-        results["Stroke"] = stroke_pred
+        X_stroke = pd.DataFrame([stroke_features], columns=stroke_model.feature_names_in_)
+        results["Stroke"] = safe_predict(stroke_model, X_stroke, stroke_feature_means)
 
     # -------------------- COVID-19 --------------------
     if show_covid:
-        X_covid = pd.DataFrame([[
-            age,                                                        # age
-            gender_binary,                                              # gender
-            int(disease_inputs["covid"].get("vaccinated", 0)),         # vaccination_status
-            0, 0, 0, 0, 0, 0,                                          # symptoms defaults
-            int(disease_inputs["covid"].get("diabetes", 0)),           # diabetes
-            int(disease_inputs["covid"].get("hypertension", 0)),       # hypertension
-            int(disease_inputs["covid"].get("heart_disease", 0)),      # heart_disease
-            0, 0, 0, 0                                                 # other defaults
-        ]], columns=[
-            'age','gender','vaccination_status','fever','cough','fatigue',
-            'shortness_of_breath','loss_of_smell','headache','diabetes',
-            'hypertension','heart_disease','asthma','cancer',
-            'hospitalized','icu_admission'
-        ])
+        covid_features = {col: np.nan for col in covid_model.feature_names_in_}
+        covid_features.update({
+            "age": age if not age_unknown else np.nan,
+            "gender": gender_binary,
+            "vaccination_status": disease_inputs["covid"].get("vaccinated", np.nan),
+            "diabetes": disease_inputs["covid"].get("diabetes", np.nan),
+            "hypertension": disease_inputs["covid"].get("hypertension", np.nan),
+            "heart_disease": disease_inputs["covid"].get("heart_disease", np.nan)
+        })
 
-        covid_pred = covid_model.predict_proba(X_covid)[:,1][0]
-        results["COVID-19"] = covid_pred
+        X_covid = pd.DataFrame([covid_features], columns=covid_model.feature_names_in_)
+        results["COVID-19"] = safe_predict(covid_model, X_covid, covid_feature_means)
 
 #---------------------------------------------------------------------------------------------#
 # --- Disclaimer / Info --- 
@@ -402,8 +448,7 @@ st.info(
     ⚠️ **Important Disclaimer**  
     This is an **unofficial health risk assessment tool** built for educational and demonstration purposes only.
 
-    Predictions are based on pre-trained models and **should not be considered medical advice**.  
-    Small changes in input values may result in non-linear changes in predicted risk due to model behavior.
+    For any missing or unknown inputs, the models use average values from the training data, which may reduce the accuracy or reliability of the predictions.
 
     For a professional evaluation of your health, please consult a **licensed medical professional**.
     """
@@ -416,20 +461,83 @@ st.info(
 if results:
         st.subheader("Predicted Risk Probabilities")
         for disease, risk in results.items():
-            st.metric(f"{disease} Risk", f"{risk*100:.1f}%")
+            st.write(f"**{disease}:** {risk:.2%}")
 
 
-#---------------------------------------------------------------------------------------------#
-# --- Interpret Risk ---
-#---------------------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------------#
+# --- Interpret Risk & Top Factors --- 
+# ---------------------------------------------------------------------------------------------#
 
-# Disease descriptions
-disease_descriptions = {
-    "IHD": "Ischemic Heart Disease: Reduced blood supply to the heart, can lead to chest pain or heart attack.",
-    "Diabetes": "Diabetes: High blood sugar levels due to insulin issues.",
-    "Stroke": "Stroke: Interruption of blood flow to the brain causing potential long-term damage.",
-    "COVID-19": "COVID-19: Viral infection that can affect respiratory and other systems."
-}
+def get_top_factors(disease, patient_data, age_val=None, gender_val=None, bmi_val=None,
+                    systolic_val=None, diastolic_val=None, smoking_val=None, activity_val=None):
+    """
+    Returns top 3 patient-centered factors that contribute to disease risk.
+    Only includes factors that are relevant for the given disease.
+    """
+    factors = []
+
+    # --- Diabetes ---
+    if disease == "Diabetes":
+        if bmi_val and bmi_val > 25:
+            factors.append("High BMI")
+        if not patient_data["diabetes"].get("dpf_unknown", 0) and patient_data["diabetes"].get("dpf", 0) > 1.0:
+            factors.append("Family history of diabetes")
+        if not patient_data["diabetes"].get("avg_glucose_unknown", 0) and patient_data["diabetes"].get("avg_glucose", 0) > 140:
+            factors.append("High average glucose")
+        if not patient_data["diabetes"].get("skin_thickness_unknown", 0) and patient_data["diabetes"].get("skin_thickness", 0) > 30:
+            factors.append("High skin thickness")
+        if smoking_val is not None:
+            smoking_status = next((key for key, value in smoking_map.items() if value == smoking_val), "Unknown")
+            factors.append(f"{smoking_status}")
+
+
+    # --- IHD ---
+    elif disease == "IHD":
+        if not patient_data["ihd"].get("cholesterol_unknown", 0) and patient_data["ihd"].get("cholesterol", 0) > 240:
+            factors.append("High cholesterol")
+        if systolic_val and systolic_val > 140:
+            factors.append("High systolic BP")
+        if diastolic_val and diastolic_val > 90:
+            factors.append("High diastolic BP")
+        if smoking_val is not None:
+            smoking_status = next((key for key, value in smoking_map.items() if value == smoking_val), "Unknown")
+            factors.append(f"{smoking_status}")
+        if activity_val is not None and activity_val < 2:  # assuming 0=low,1=moderate,2=high
+            factors.append("Low physical activity")
+        if not patient_data["ihd"].get("exercise_angina_unknown", 0) and patient_data["ihd"].get("exercise_angina", 0) > 0:
+            factors.append("Exercise-induced angina")
+
+    # --- Stroke ---
+    elif disease == "Stroke":
+        if systolic_val and systolic_val > 130:
+            factors.append("High systolic BP")
+        if diastolic_val and diastolic_val > 80:
+            factors.append("High diastolic BP")
+        if bmi_val and bmi_val > 30:
+            factors.append("High BMI")
+        if not patient_data["stroke"].get("previous_tia_unknown", 0) and patient_data["stroke"].get("previous_tia", 0) > 0:
+            factors.append("Previous TIA / mini-stroke")
+        if smoking_val is not None:
+            smoking_status = next((key for key, value in smoking_map.items() if value == smoking_val), "Unknown")
+            factors.append(f"{smoking_status}")
+
+    # --- COVID-19 ---
+    elif disease == "COVID-19":
+        if not patient_data["covid"].get("vaccinated_unknown", 0) and patient_data["covid"].get("vaccinated", 0) == 0:
+            factors.append("Not vaccinated")
+        if not patient_data["covid"].get("diabetes_unknown", 0) and patient_data["covid"].get("diabetes", 0) > 0:
+            factors.append("Diabetes")
+        if not patient_data["covid"].get("hypertension_unknown", 0) and patient_data["covid"].get("hypertension", 0) > 0:
+            factors.append("Hypertension")
+        if not patient_data["covid"].get("heart_disease_unknown", 0) and patient_data["covid"].get("heart_disease", 0) > 0:
+            factors.append("Heart disease")
+        if age_val and age_val > 60:
+            factors.append("Advanced age")
+        if bmi_val and bmi_val > 30:
+            factors.append("High BMI")
+
+    # Return **top 3 factors** or default message if empty
+    return factors[:3] if factors else ["No significant patient-centered factors identified."]
 
 def interpret_risk(risk):
     """
@@ -466,6 +574,20 @@ if results:
 # --- PDF Generation and Export ---
 #---------------------------------------------------------------------------------------------#
 
+patient_info = {
+    "age": age,
+    "gender": gender,
+    "bmi": bmi,
+    "systolic": systolic,
+    "diastolic": diastolic,
+    "smoking": smoking_encoded,
+    "activity": activity_encoded,
+    "diabetes": disease_inputs.get("diabetes", {}),
+    "ihd": disease_inputs.get("ihd", {}),
+    "stroke": disease_inputs.get("stroke", {}),
+    "covid": disease_inputs.get("covid", {})
+}
+
 # Disease descriptions
 disease_descriptions = {
     "IHD": "Ischemic Heart Disease: Reduced blood supply to the heart, can lead to chest pain or heart attack.",
@@ -480,7 +602,7 @@ def normalize_disease_name(name: str) -> str:
     """
     return name.replace(" Risk", "").strip()
 
-def save_pdf(results_dict, patient_info):
+def save_pdf(results_dict, patient_info, top_factors_dict):
     pdf = FPDF()
     pdf.add_page()
     
@@ -492,27 +614,11 @@ def save_pdf(results_dict, patient_info):
     # Patient info
     pdf.set_font("Arial", '', 12)
     pdf.cell(0, 8, f"Date: {datetime.now().strftime('%d-%m-%y')}", ln=True)
-    pdf.cell(0, 8, f"Age: {patient_info.get('age', 'N/A')} | Gender: {patient_info.get('gender', 'N/A')} | BMI: {patient_info.get('bmi', 'N/A'):.1f}", ln=True)
+    pdf.cell(0, 8, f"Age: {patient_info.get('age', 'N/A')} | Gender: {patient_info.get('gender', 'N/A')} | BMI: {bmi if bmi is not None and not np.isnan(bmi) else 'N/A'}", ln=True)
     pdf.cell(0, 8, f"Smoking: {patient_info.get('smoking', 'N/A')} | Alcohol: {patient_info.get('alcohol', 'N/A')} | Physical Activity: {patient_info.get('activity', 'N/A')}", ln=True)
     pdf.cell(0, 8, f"All inputs are patient-reported unless otherwise stated.", ln=True)
 
-    # --- Elevated Risk Summary ---
-    elevated_diseases = []
-
-    for disease, risk in results_dict.items():
-        category, _ = interpret_risk(risk)
-        if category in ["Moderate", "High", "Very High"]:
-            elevated_diseases.append(disease)
-
-    if elevated_diseases:
-        pdf.ln(2)
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 8, "Elevated risk flagged for:", ln=True)
-        pdf.set_font("Arial", '', 12)
-        pdf.multi_cell(0, 6, ", ".join(elevated_diseases))
-    pdf.ln(5)
-
-    # Risk categories
+    # Risk categories with tips
     risk_categories = [
         (0.0, 0.1, "Low", "Maintain your healthy lifestyle."),
         (0.1, 0.2, "Moderate", "Consider improving diet, exercise, and regular check-ups."),
@@ -521,6 +627,7 @@ def save_pdf(results_dict, patient_info):
 
     # Disease sections
     for disease, risk in results_dict.items():
+
         # Divider
         y = pdf.get_y()
         pdf.set_draw_color(180, 180, 180)
@@ -537,17 +644,23 @@ def save_pdf(results_dict, patient_info):
         # Disease + Risk
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(120, 8, disease)
-        pdf.cell(0, 8, f"Risk: {risk*100:.1f}%", ln=True)
+        pdf.cell(0, 8, f"Risk: {risk*100:.1f}% ({category_text})", ln=True)
 
-        # Description
+        # Top 3 patient-centered factors
+        factors = top_factors_dict.get(disease, ["No significant patient-centered factors identified."])
+        pdf.set_font("Arial", '', 12)
+        pdf.multi_cell(0, 6, "Top contributing factors: " + ", ".join(factors))
+        pdf.ln(2)
+
+        # Disease description
         description_text = disease_descriptions.get(disease, "No description available.")
         pdf.set_font("Arial", 'I', 11)
         pdf.multi_cell(0, 6, description_text)
 
         # Tip
         pdf.set_font("Arial", '', 12)
-        pdf.multi_cell(0, 6, f"Tip: {tip_text}")
-
+        pdf.multi_cell(0, 6, f"Tip: {tip_text}")     
+   
         pdf.ln(3)
 
     # Divider line above patient concerns
@@ -564,6 +677,7 @@ def save_pdf(results_dict, patient_info):
     pdf.multi_cell(0, 6, "______________________________________________________________\n" * 3) # change * 3 to change how many lines
 
     # Suggested follow-up
+    pdf.ln(3)
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 6, "Suggested follow-up:", ln=True)
     pdf.set_font("Arial", '', 11)
@@ -572,7 +686,7 @@ def save_pdf(results_dict, patient_info):
     # Disclaimer
     pdf.ln(5)
     pdf.set_font("Arial", 'I', 10)
-    pdf.multi_cell(0, 5, "Disclaimer: This report is for informational purposes only and is not a medical diagnosis. Please consult a licensed healthcare professional for personalized advice.")
+    pdf.multi_cell(0, 5, "Disclaimer: This report is for informational purposes only and is not a medical diagnosis. \nPredictions are based on pre-trained models and the patient information provided. For any missing or unknown inputs, the models use average values from the training data, which may reduce the accuracy or reliability of the predictions. Please consult a licensed healthcare professional for personalized advice.")
 
     # Output PDF as bytes
     pdf_bytes = pdf.output(dest='S').encode('latin1')
@@ -582,19 +696,40 @@ def save_pdf(results_dict, patient_info):
 # --- Generate PDF & Download Button ---
 # ---------------------------------------------------------------------------------------------
 
+# --- Generate patient-specific top factors dynamically ---
+
+top_factors_dynamic = {}
+for disease in results.keys():
+    top_factors_dynamic[disease] = get_top_factors(
+        disease,
+        patient_info,
+        age_val=age,
+        gender_val=gender,
+        bmi_val=bmi,
+        systolic_val=systolic,
+        diastolic_val=diastolic,
+        smoking_val=smoking_encoded,
+        activity_val=activity_encoded
+    )
+
 if results:
     # Gather patient info
     patient_info = {
-        "age": age,
-        "gender": gender,
-        "bmi": bmi,
-        "smoking": smoking_status,
-        "alcohol": alcohol_consumption,
-        "activity": physical_activity
+    "age": age,
+    "gender": gender,
+    "bmi": bmi,
+    "systolic": systolic,
+    "diastolic": diastolic,
+    "smoking": smoking_status,
+    "alcohol": alcohol_consumption,
+    "activity": physical_activity,
+    "diabetes": disease_inputs.get("diabetes", {}),
+    "ihd": {"cholesterol": 200, **disease_inputs.get("ihd", {})},  # allow default
+    "covid": disease_inputs.get("covid", {}),
     }
 
     # Generate PDF bytes
-    pdf_bytes = save_pdf(results, patient_info)
+    pdf_bytes = save_pdf(results, patient_info, top_factors_dynamic)
 
     # Streamlit download button
     st.download_button(
@@ -669,5 +804,3 @@ with st.form(key="feedback_form"):
             st.session_state.feedback_submitted = True  # Update the state to disable the button
         except Exception as e:
             st.error(f"Error sending feedback: {e}")
-
-            
