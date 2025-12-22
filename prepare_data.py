@@ -28,6 +28,14 @@ ihd_df = pd.read_csv(os.path.join(data_path, "heartdisease.csv"))
 stroke_df = pd.read_csv(os.path.join(data_path, "stroke.csv"))
 covid_df = pd.read_csv(os.path.join(data_path, "covid-19.csv"))
 
+# ---------------------------------------------------------------------------------------------#
+# --- Step 2a: Check class distribution for IHD (target variable) ---
+# ---------------------------------------------------------------------------------------------#
+
+# Check the class distribution in the target variable (IHD)
+print("IHD target class distribution:")
+print(ihd_df['target'].value_counts())
+
 #---------------------------------------------------------------------------------------------#
 # --- Step 2a: Handle missing values ---
 #---------------------------------------------------------------------------------------------#
@@ -105,19 +113,27 @@ print("COVID model trained successfully!")
 
 print("All models trained and saved successfully!")
 
-# Now you can safely print feature names
-print("Diabetes model features:", diabetes_model.feature_names_in_)
-print("IHD model features:", ihd_model.feature_names_in_)
-print("Stroke model features:", stroke_model.feature_names_in_)
-print("COVID model features:", covid_model.feature_names_in_)
+#---------------------------------------------------------------------------------------------#
+# --- Additional information ---
+#---------------------------------------------------------------------------------------------#
 
-# Save feature means for later use in the Streamlit app
-def save_feature_means(X, model_name):
-    feature_means = X.mean().to_dict()
-    with open(os.path.join(model_path, f"{model_name}_feature_means.json"), "w") as f:
-        json.dump(feature_means, f)
+# --- Print feature names ---
 
-save_feature_means(X_diabetes, "diabetes")
-save_feature_means(X_ihd, "ihd")
-save_feature_means(X_stroke, "stroke")
-save_feature_means(X_covid, "covid")
+#print("Diabetes model features:", diabetes_model.feature_names_in_)
+#print("IHD model features:", ihd_model.feature_names_in_)
+#print("Stroke model features:", stroke_model.feature_names_in_)
+#print("COVID model features:", covid_model.feature_names_in_)
+
+# --- Save feature means ---
+
+#def save_feature_means(X, model_name):
+#    feature_means = X.mean().to_dict()
+#    with open(os.path.join(model_path, f"{model_name}_feature_means.json"), "w") as f:
+#        json.dump(feature_means, f)
+
+#save_feature_means(X_diabetes, "diabetes")
+#save_feature_means(X_ihd, "ihd")
+#save_feature_means(X_stroke, "stroke")
+#save_feature_means(X_covid, "covid")
+
+# --- Blood Pressure ---

@@ -486,7 +486,7 @@ def get_top_factors(disease, patient_data, age_val=None, gender_val=None, bmi_va
             factors.append("High average glucose")
         if not patient_data["diabetes"].get("skin_thickness_unknown", 0) and patient_data["diabetes"].get("skin_thickness", 0) > 30:
             factors.append("High skin thickness")
-        if smoking_val is not None:
+        if smoking_val is not None and smoking_val != 0:  # Skip "Non-smoker" (value 0)
             smoking_status = next((key for key, value in smoking_map.items() if value == smoking_val), "Unknown")
             factors.append(f"{smoking_status}")
 
@@ -499,7 +499,7 @@ def get_top_factors(disease, patient_data, age_val=None, gender_val=None, bmi_va
             factors.append("High systolic BP")
         if diastolic_val and diastolic_val > 90:
             factors.append("High diastolic BP")
-        if smoking_val is not None:
+        if smoking_val is not None and smoking_val != 0:  # Skip "Non-smoker" (value 0)
             smoking_status = next((key for key, value in smoking_map.items() if value == smoking_val), "Unknown")
             factors.append(f"{smoking_status}")
         if activity_val is not None and activity_val < 2:  # assuming 0=low,1=moderate,2=high
@@ -517,7 +517,7 @@ def get_top_factors(disease, patient_data, age_val=None, gender_val=None, bmi_va
             factors.append("High BMI")
         if not patient_data["stroke"].get("previous_tia_unknown", 0) and patient_data["stroke"].get("previous_tia", 0) > 0:
             factors.append("Previous TIA / mini-stroke")
-        if smoking_val is not None:
+        if smoking_val is not None and smoking_val != 0:  # Skip "Non-smoker" (value 0)
             smoking_status = next((key for key, value in smoking_map.items() if value == smoking_val), "Unknown")
             factors.append(f"{smoking_status}")
 
@@ -533,8 +533,6 @@ def get_top_factors(disease, patient_data, age_val=None, gender_val=None, bmi_va
             factors.append("Heart disease")
         if age_val and age_val > 60:
             factors.append("Advanced age")
-        if bmi_val and bmi_val > 30:
-            factors.append("High BMI")
 
     # Return **top 3 factors** or default message if empty
     return factors[:3] if factors else ["No significant patient-centered factors identified."]
@@ -616,6 +614,22 @@ def save_pdf(results_dict, patient_info, top_factors_dict):
     pdf.cell(0, 8, f"Date: {datetime.now().strftime('%d-%m-%y')}", ln=True)
     pdf.cell(0, 8, f"Age: {patient_info.get('age', 'N/A')} | Gender: {patient_info.get('gender', 'N/A')} | BMI: {bmi if bmi is not None and not np.isnan(bmi) else 'N/A'}", ln=True)
     pdf.cell(0, 8, f"Smoking: {patient_info.get('smoking', 'N/A')} | Alcohol: {patient_info.get('alcohol', 'N/A')} | Physical Activity: {patient_info.get('activity', 'N/A')}", ln=True)
+    # Add risk of disease
+    risk_of = []
+
+    # Check if any disease is flagged as moderate or higher risk
+    for disease, risk in results.items():
+        category, _ = interpret_risk(risk)  # Get the category based on risk
+        if category in ["Moderate", "High", "Very High"]:
+            risk_of.append(disease)
+
+    if risk_of:
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 8, f"Risk of: {', '.join(risk_of)}", ln=True)
+    else:
+        pdf.cell(0, 8, "No significant risks identified", ln=True)
+
+    pdf.set_font("Arial", '', 12)    
     pdf.cell(0, 8, f"All inputs are patient-reported unless otherwise stated.", ln=True)
 
     # Risk categories with tips
