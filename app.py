@@ -30,16 +30,16 @@ ihd_model = joblib.load(os.path.join(MODEL_PATH, "ihd_model.pkl"))
 stroke_model = joblib.load(os.path.join(MODEL_PATH, "stroke_model.pkl"))
 covid_model = joblib.load(os.path.join(MODEL_PATH, "covid_model.pkl"))
 
-with open("models/diabetes_feature_means.json") as f:
+with open("models/diabetes_model_feature_means.json") as f:
     diabetes_feature_means = json.load(f)
 
-with open("models/ihd_feature_means.json") as f:
+with open("models/ihd_model_feature_means.json") as f:
     ihd_feature_means = json.load(f)
 
-with open("models/stroke_feature_means.json") as f:
+with open("models/stroke_model_feature_means.json") as f:
     stroke_feature_means = json.load(f)
 
-with open("models/covid_feature_means.json") as f:
+with open("models/covid_model_feature_means.json") as f:
     covid_feature_means = json.load(f)
 
 # -----------------------------------------------------------------------------------
@@ -68,7 +68,7 @@ model_accuracies = {
     "Diabetes": 0.72,
     "IHD": 0.95,
     "Stroke": 0.95,
-    "COVID-19 Mortality": 0.95
+    "COVID": 0.95
 }
 
 #---------------------------------------------------------------------------------------------#
@@ -333,35 +333,45 @@ if show_covid:
     if "covid" not in disease_inputs:
         disease_inputs["covid"] = {}
 
-    # Vaccinated
-    vacc_na = st.checkbox("Vaccination status: N/A or Unknown")
-    vaccinated = np.nan if vacc_na else int(st.checkbox("Vaccinated"))
-    vaccinated_unknown = int(vacc_na)
+    # Symptom inputs
+    fever = int(st.checkbox("Fever"))
+    dry_cough = int(st.checkbox("Dry cough"))
+    sore_throat = int(st.checkbox("Sore throat"))
+    fatigue = int(st.checkbox("Fatigue"))
+    headache = int(st.checkbox("Headache"))
+    shortness_of_breath = int(st.checkbox("Shortness of breath"))
+    loss_of_smell = int(st.checkbox("Loss of smell"))
+    loss_of_taste = int(st.checkbox("Loss of taste"))
+    chest_pain = int(st.checkbox("Chest pain"))
 
-    # Chronic conditions
-    diabetes_history_na = st.checkbox("History of diabetes: N/A or Unknown")
-    diabetes_history = np.nan if diabetes_history_na else int(st.checkbox("History of diabetes"))
-    diabetes_history_unknown = int(diabetes_history_na)
+    # Additional clinical info
+    oxygen_level = st.number_input("Oxygen level (%)", 70, 100, 98)
+    body_temperature = st.number_input("Body temperature (°C)", 35.0, 42.0, 36.8)
+    comorbidity = int(st.checkbox("Comorbidity present"))
+    travel_history = int(st.checkbox("Recent travel history"))
+    contact_with_patient = int(st.checkbox("Contact with COVID-positive patient"))
+    covid_result = st.selectbox("Previous COVID result", ["Unknown", "Negative", "Positive"])
 
-    hypertension_na = st.checkbox("History of hypertension: N/A or Unknown")
-    hypertension = np.nan if hypertension_na else int(st.checkbox("History of hypertension"))
-    hypertension_unknown = int(hypertension_na)
-
-    heart_disease_na = st.checkbox("History of heart disease: N/A or Unknown")
-    heart_disease = np.nan if heart_disease_na else int(st.checkbox("History of heart disease"))
-    heart_disease_unknown = int(heart_disease_na)
-
+    # Assign to disease_inputs
     disease_inputs["covid"] = {
-        "vaccinated": vaccinated,
-        "vaccinated_unknown": vaccinated_unknown,
-        "diabetes": diabetes_history,
-        "diabetes_unknown": diabetes_history_unknown,
-        "hypertension": hypertension,
-        "hypertension_unknown": hypertension_unknown,
-        "heart_disease": heart_disease,
-        "heart_disease_unknown": heart_disease_unknown
+        "age": age,
+        "gender": gender,
+        "fever": fever,
+        "dry_cough": dry_cough,
+        "sore_throat": sore_throat,
+        "fatigue": fatigue,
+        "headache": headache,
+        "shortness_of_breath": shortness_of_breath,
+        "loss_of_smell": loss_of_smell,
+        "loss_of_taste": loss_of_taste,
+        "oxygen_level": oxygen_level,
+        "body_temperature": body_temperature,
+        "comorbidity": comorbidity,
+        "travel_history": travel_history,
+        "contact_with_patient": contact_with_patient,
+        "chest_pain": chest_pain,
+        "covid_result": covid_result
     }
-
 
 #---------------------------------------------------------------------------------------------#
 # --- Run Predictions ---
@@ -426,18 +436,34 @@ if run_prediction:
 
     # -------------------- COVID-19 --------------------
     if show_covid:
+    # Initialize features dict with NaNs
         covid_features = {col: np.nan for col in covid_model.feature_names_in_}
-        covid_features.update({
-            "age": age if not age_unknown else np.nan,
-            "gender": gender_binary,
-            "vaccination_status": disease_inputs["covid"].get("vaccinated", np.nan),
-            "diabetes": disease_inputs["covid"].get("diabetes", np.nan),
-            "hypertension": disease_inputs["covid"].get("hypertension", np.nan),
-            "heart_disease": disease_inputs["covid"].get("heart_disease", np.nan)
-        })
 
-        X_covid = pd.DataFrame([covid_features], columns=covid_model.feature_names_in_)
-        results["COVID-19"] = safe_predict(covid_model, X_covid, covid_feature_means)
+    # Update with actual patient inputs
+    covid_features.update({
+        "age": age if not age_na else np.nan,
+        "gender": gender_binary,
+        "fever": disease_inputs["covid"].get("fever", np.nan),
+        "dry_cough": disease_inputs["covid"].get("dry_cough", np.nan),
+        "sore_throat": disease_inputs["covid"].get("sore_throat", np.nan),
+        "fatigue": disease_inputs["covid"].get("fatigue", np.nan),
+        "headache": disease_inputs["covid"].get("headache", np.nan),
+        "shortness_of_breath": disease_inputs["covid"].get("shortness_of_breath", np.nan),
+        "loss_of_smell": disease_inputs["covid"].get("loss_of_smell", np.nan),
+        "loss_of_taste": disease_inputs["covid"].get("loss_of_taste", np.nan),
+        "oxygen_level": disease_inputs["covid"].get("oxygen_level", np.nan),
+        "body_temperature": disease_inputs["covid"].get("body_temperature", np.nan),
+        "comorbidity": disease_inputs["covid"].get("comorbidity", np.nan),
+        "travel_history": disease_inputs["covid"].get("travel_history", np.nan),
+        "contact_with_patient": disease_inputs["covid"].get("contact_with_patient", np.nan),
+        "chest_pain": disease_inputs["covid"].get("chest_pain", np.nan)
+    })
+
+    # Convert to DataFrame
+    X_covid = pd.DataFrame([covid_features], columns=covid_model.feature_names_in_)
+
+    # Predict using safe_predict (fills NaNs with feature means)
+    results["COVID-19"] = safe_predict(covid_model, X_covid, covid_feature_means)
 
 #---------------------------------------------------------------------------------------------#
 # --- Disclaimer / Info --- 
@@ -523,14 +549,33 @@ def get_top_factors(disease, patient_data, age_val=None, gender_val=None, bmi_va
 
     # --- COVID-19 ---
     elif disease == "COVID-19":
-        if not patient_data["covid"].get("vaccinated_unknown", 0) and patient_data["covid"].get("vaccinated", 0) == 0:
-            factors.append("Not vaccinated")
-        if not patient_data["covid"].get("diabetes_unknown", 0) and patient_data["covid"].get("diabetes", 0) > 0:
-            factors.append("Diabetes")
-        if not patient_data["covid"].get("hypertension_unknown", 0) and patient_data["covid"].get("hypertension", 0) > 0:
-            factors.append("Hypertension")
-        if not patient_data["covid"].get("heart_disease_unknown", 0) and patient_data["covid"].get("heart_disease", 0) > 0:
-            factors.append("Heart disease")
+        covid_data = patient_data.get("covid", {})
+
+        # Symptoms
+        if covid_data.get("fever", 0):
+            factors.append("Fever")
+        if covid_data.get("dry_cough", 0):
+            factors.append("Dry cough")
+        if covid_data.get("sore_throat", 0):
+            factors.append("Sore throat")
+        if covid_data.get("fatigue", 0):
+            factors.append("Fatigue")
+        if covid_data.get("headache", 0):
+            factors.append("Headache")
+        if covid_data.get("shortness_of_breath", 0):
+            factors.append("Shortness of breath")
+        if covid_data.get("loss_of_smell", 0):
+            factors.append("Loss of smell")
+        if covid_data.get("loss_of_taste", 0):
+            factors.append("Loss of taste")
+        if covid_data.get("chest_pain", 0):
+            factors.append("Chest pain")
+
+        # Comorbidities
+        if covid_data.get("comorbidity", 0):
+            factors.append("Comorbidity present")
+
+        # Age-based risk
         if age_val and age_val > 60:
             factors.append("Advanced age")
 
