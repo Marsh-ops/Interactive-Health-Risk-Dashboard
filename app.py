@@ -500,17 +500,20 @@ if run_prediction:
         # Initialize IHD features with NaN values
         ihd_features = {col: np.nan for col in ihd_model.feature_names_in_}
 
+        # Safely access disease_inputs for IHD, returning empty dictionary if missing
+        ihd_data = disease_inputs.get("ihd", {})
+
         # Update with actual values, using .get() to avoid KeyErrors for missing entries
         ihd_features.update({
             "age": age if not age_unknown else np.nan,
             "sex": gender_binary,
-            "chest_pain_type": disease_inputs.get("ihd", {}).get("chest_pain", np.nan),
+            "chest_pain_type": ihd_data.get("chest_pain", np.nan),
             "resting_bp_s": systolic if not systolic_unknown else np.nan,
-            "cholesterol": disease_inputs.get("ihd", {}).get("cholesterol", np.nan),
-            "exercise_angina": disease_inputs.get("ihd", {}).get("exercise_angina", np.nan),
-            "st_slope": disease_inputs.get("ihd", {}).get("st_slope", np.nan),
-            "oldpeak": disease_inputs.get("ihd", {}).get("oldpeak", np.nan),
-            "max_heart_rate": disease_inputs.get("ihd", {}).get("max_heart_rate", np.nan)
+            "cholesterol": ihd_data.get("cholesterol", np.nan),
+            "exercise_angina": ihd_data.get("exercise_angina", np.nan),
+            "st_slope": ihd_data.get("st_slope", np.nan),
+            "oldpeak": ihd_data.get("oldpeak", np.nan),
+            "max_heart_rate": ihd_data.get("max_heart_rate", np.nan)
         })
 
         # Create DataFrame for IHD features
