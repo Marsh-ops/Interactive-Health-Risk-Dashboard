@@ -308,35 +308,58 @@ if show_diabetes:
     insulin = np.nan if insulin_na else st.number_input("Insulin Level", 1, 900, 80)
     insulin_unknown = int(insulin_na)
 
-    # Diabetes Pedigree Function
+        # Diabetes Pedigree Function
     # --- Additional Information Section for Family History ---
     st.subheader("Family History of Diabetes")
 
     # Input form for family history
     family_history = {
         "parent_with_diabetes": st.checkbox("Does your parent have diabetes?"),
-        "parent_age_onset": st.number_input("What was your parent's age of onset?", min_value=0, max_value=120, step=1),
-        "sibling_with_diabetes": st.checkbox("Do you have a sibling with diabetes?"),
-        "sibling_age_onset": st.number_input("What was your sibling's age of onset?", min_value=0, max_value=120, step=1)
     }
+
+    # Only ask for parent's age of onset if the checkbox is ticked
+    if family_history["parent_with_diabetes"]:
+        parent_age_onset = st.number_input("What was your parent's age of onset?", min_value=0, max_value=120, step=1)
+    else:
+        parent_age_onset = None  # or set to a default value if needed
+
+    family_history["parent_age_onset"] = parent_age_onset
+
+    # Sibling information
+    family_history["sibling_with_diabetes"] = st.checkbox("Do you have a sibling with diabetes?")
+
+    # Only ask for sibling's age of onset if the checkbox is ticked
+    if family_history["sibling_with_diabetes"]:
+        sibling_age_onset = st.number_input("What was your sibling's age of onset?", min_value=0, max_value=120, step=1)
+    else:
+        sibling_age_onset = None  # or set to a default value if needed
+
+    family_history["sibling_age_onset"] = sibling_age_onset
+
+    # Display the results or use them as needed
+    st.write(family_history)
 
     # Calculate DPF score from the family history inputs
     def calculate_dpf(family_history):
-        # Simple logic to calculate DPF based on family history
         dpf = 0
 
         # If family member has diabetes and is diagnosed before age 50, increase the score
         if family_history["parent_with_diabetes"]:
-            if family_history["parent_age_onset"] < 50:
+            if family_history["parent_age_onset"] is not None and family_history["parent_age_onset"] < 50:
                 dpf += 0.25  # Example weight
         if family_history["sibling_with_diabetes"]:
-            if family_history["sibling_age_onset"] < 50:
+            if family_history["sibling_age_onset"] is not None and family_history["sibling_age_onset"] < 50:
                 dpf += 0.20  # Example weight
         
         return dpf
 
     # Calculate DPF score based on the input
     dpf_score = calculate_dpf(family_history)
+
+    # Display the DPF score right above the checkbox for user reference
+    st.write(f"**Calculated Diabetes Pedigree Function (DPF) score:** {dpf_score:.2f}")
+
+    # Now ask if DPF is N/A or Unknown
     dpf_na = st.checkbox("Diabetes Pedigree Function: N/A or Unknown")
     dpf = np.nan if dpf_na else st.number_input("Diabetes Pedigree Function", 0.0, 2.5, 0.5)
     dpf_unknown = int(dpf_na)
