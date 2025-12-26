@@ -309,7 +309,7 @@ if show_diabetes:
     insulin_unknown = int(insulin_na)
 
         # Diabetes Pedigree Function
-    # --- Additional Information Section for Family History ---
+    # --- Family History of Diabetes ---
     st.subheader("Family History of Diabetes")
 
     # Input form for family history
@@ -336,9 +336,6 @@ if show_diabetes:
 
     family_history["sibling_age_onset"] = sibling_age_onset
 
-    # Display the results or use them as needed
-    st.write(family_history)
-
     # Calculate DPF score from the family history inputs
     def calculate_dpf(family_history):
         dpf = 0
@@ -353,15 +350,15 @@ if show_diabetes:
         
         return dpf
 
-    # Calculate DPF score based on the input
+    # Calculate the DPF score based on the family history
     dpf_score = calculate_dpf(family_history)
 
-    # Display the DPF score right above the checkbox for user reference
+    # Display the calculated DPF score directly above the checkbox
     st.write(f"**Calculated Diabetes Pedigree Function (DPF) score:** {dpf_score:.2f}")
 
     # Now ask if DPF is N/A or Unknown
     dpf_na = st.checkbox("Diabetes Pedigree Function: N/A or Unknown")
-    dpf = np.nan if dpf_na else st.number_input("Diabetes Pedigree Function", 0.0, 2.5, 0.5)
+    dpf = np.nan if dpf_na else dpf_score  # Use the pre-calculated score
     dpf_unknown = int(dpf_na)
 
     disease_inputs["diabetes"] = {
