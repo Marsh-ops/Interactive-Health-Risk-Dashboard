@@ -775,9 +775,9 @@ patient_info = {
     "bmi": bmi,
     "systolic": systolic,
     "diastolic": diastolic,
-    "smoking": smoking_status,  # Update key to match PDF generation
-    "alcohol": alcohol_consumption,
-    "activity": physical_activity,  # Update key to match PDF generation
+    "smoking": smoking_encoded,  # Encoded smoking status
+    "alcohol": alcohol_encoded,  # Encoded alcohol consumption
+    "activity": activity_encoded,  # Encoded activity level
     "diabetes": disease_inputs.get("diabetes", {}),
     "ihd": disease_inputs.get("ihd", {}),
     "stroke": disease_inputs.get("stroke", {}),
