@@ -269,26 +269,77 @@ if show_diabetes:
     st.subheader("Diabetes – Additional Information")
 
     # Pregnancies
-    preg_na = st.checkbox("Number of pregnancies: N/A or Unknown")
-    pregnancies = np.nan if preg_na else st.number_input("Number of pregnancies", 0, 20, 0)
-    pregnancies_unknown = int(preg_na)
+    if gender.lower() == "male":
+        st.checkbox("Number of pregnancies: N/A or Unknown", value=True, disabled=True)
+        pregnancies = np.nan
+        pregnancies_unknown = 1
+    else:
+        preg_na = st.checkbox("Number of pregnancies: N/A or Unknown")
+        pregnancies = np.nan if preg_na else st.number_input("Number of pregnancies", 0, 20, 0)
+        pregnancies_unknown = int(preg_na)
 
     # Average Glucose
-    glucose_na = st.checkbox("Average Glucose Level: N/A or Unknown")
+    glucose_na = st.checkbox("Average Fasting Glucose Level: N/A or Unknown")
     avg_glucose = np.nan if glucose_na else st.number_input("Average Glucose Level", 50, 300, 100)
     avg_glucose_unknown = int(glucose_na)
 
-    # Skin Thickness
-    skin_na = st.checkbox("Skin Thickness: N/A or Unknown")
-    skin_thickness = np.nan if skin_na else st.number_input("Skin Thickness (mm)", 1, 99, 20)
-    skin_thickness_unknown = int(skin_na)
+    # --- Waist Circumference Input ---
+    # Checkbox for when waist circumference is unknown
+    waist_na = st.checkbox("Waist Circumference: N/A or Unknown")
+
+    # --- Waist Circumference Input ---
+    waist_thickness_na = st.checkbox("Waist Circumference: N/A or Unknown")
+
+    # Only show waist circumference input if not marked as unknown
+    if not waist_thickness_na:
+        waist_thickness = st.number_input("Enter your waist circumference (in cm):", min_value=0.0, max_value=200.0)
+    else:
+        waist_thickness = np.nan  # If unknown, set value to np.nan
+
+    waist_thickness_unknown = int(waist_thickness_na)
 
     # Insulin
-    insulin_na = st.checkbox("Insulin Level: N/A or Unknown")
+    insulin_na = st.checkbox("Insulin Level (µU/mL): N/A or Unknown")
+
+    st.write("""
+        **Insulin levels are reported in micro-units per milliliter (µU/mL).  
+        This is the most common unit used for insulin measurements. To convert to picomoles per liter (pmol/L), 
+        multiply by 6 (i.e., **1 µU/mL = 6 pmol/L**). 
+        Elevated insulin levels can indicate issues with insulin regulation, often seen in insulin resistance or type 2 diabetes.
+    """)
+
     insulin = np.nan if insulin_na else st.number_input("Insulin Level", 1, 900, 80)
     insulin_unknown = int(insulin_na)
 
     # Diabetes Pedigree Function
+    # --- Additional Information Section for Family History ---
+    st.subheader("Family History of Diabetes")
+
+    # Input form for family history
+    family_history = {
+        "parent_with_diabetes": st.checkbox("Does your parent have diabetes?"),
+        "parent_age_onset": st.number_input("What was your parent's age of onset?", min_value=0, max_value=120, step=1),
+        "sibling_with_diabetes": st.checkbox("Do you have a sibling with diabetes?"),
+        "sibling_age_onset": st.number_input("What was your sibling's age of onset?", min_value=0, max_value=120, step=1)
+    }
+
+    # Calculate DPF score from the family history inputs
+    def calculate_dpf(family_history):
+        # Simple logic to calculate DPF based on family history
+        dpf = 0
+
+        # If family member has diabetes and is diagnosed before age 50, increase the score
+        if family_history["parent_with_diabetes"]:
+            if family_history["parent_age_onset"] < 50:
+                dpf += 0.25  # Example weight
+        if family_history["sibling_with_diabetes"]:
+            if family_history["sibling_age_onset"] < 50:
+                dpf += 0.20  # Example weight
+        
+        return dpf
+
+    # Calculate DPF score based on the input
+    dpf_score = calculate_dpf(family_history)
     dpf_na = st.checkbox("Diabetes Pedigree Function: N/A or Unknown")
     dpf = np.nan if dpf_na else st.number_input("Diabetes Pedigree Function", 0.0, 2.5, 0.5)
     dpf_unknown = int(dpf_na)
@@ -298,8 +349,8 @@ if show_diabetes:
         "pregnancies_unknown": pregnancies_unknown,
         "avg_glucose": avg_glucose,
         "avg_glucose_unknown": avg_glucose_unknown,
-        "skin_thickness": skin_thickness,
-        "skin_thickness_unknown": skin_thickness_unknown,
+        "waist_thickness": waist_thickness,
+        "waist_thickness_unknown": waist_thickness_unknown,
         "insulin": insulin,
         "insulin_unknown": insulin_unknown,
         "dpf": dpf,
@@ -484,10 +535,10 @@ if run_prediction:
             "Pregnancies": disease_inputs["diabetes"].get("pregnancies", np.nan),
             "Glucose": disease_inputs["diabetes"].get("avg_glucose", np.nan),
             "BloodPressure": bp_mean,
-            "SkinThickness": disease_inputs["diabetes"].get("skin_thickness", np.nan),
+            "waistThickness": disease_inputs["diabetes"].get("waist_thickness", np.nan),
             "Insulin": disease_inputs["diabetes"].get("insulin", np.nan),
             "BMI": bmi if not bmi_unknown else np.nan,
-            "DiabetesPedigreeFunction": disease_inputs["diabetes"].get("dpf", np.nan),
+            "DiabetesPedigreeFunction": dpf_score,  # Add DPF to the features
             "Age": age if not age_unknown else np.nan
         })
 
@@ -607,21 +658,31 @@ def get_top_factors(disease, patient_data,
 
     # --- Diabetes ---
     if disease == "Diabetes":
-        stroke = patient_data.get("diabetes", {})
         bmi = bmi_val if bmi_val is not None else patient_data["diabetes"].get("bmi", np.nan)
         dpf = patient_data["diabetes"].get("dpf", np.nan)
         glucose = patient_data["diabetes"].get("avg_glucose", np.nan)
-        skin = patient_data["diabetes"].get("skin_thickness", np.nan)
+        waist = patient_data["diabetes"].get("waist_thickness", np.nan)
         smoke = smoking_val if smoking_val is not None else patient_data["diabetes"].get("smoking_status", 0)
+        insulin = patient_data["diabetes"].get("insulin", np.nan)
+        pregnancies = patient_data["diabetes"].get("pregnancies", np.nan)
+        pregnancies_unknown = patient_data["diabetes"].get("pregnancies_unknown", 1)  # 1 if N/A
 
+        # Patient-centered factors
+        if not np.isnan(insulin) and insulin > 25:
+            factors.append("High insulin (µU/mL)")
         if not np.isnan(bmi) and bmi > 25:
             factors.append("High BMI")
         if not np.isnan(dpf) and dpf > 1.0:
             factors.append("Family history of diabetes")
         if not np.isnan(glucose) and glucose > 140:
             factors.append("High average glucose")
-        if not np.isnan(skin) and skin > 30:
-            factors.append("High skin thickness")
+        if not np.isnan(waist):
+            if waist > 102:
+                factors.append("Waist circumference exceeds 102 cm (increased risk for diabetes and cardiovascular disease in men)")
+            elif waist > 88:
+                factors.append("Waist circumference exceeds 88 cm (increased risk for diabetes and cardiovascular disease in women)")
+        if pregnancies_unknown == 0 and pregnancies > 3:
+            factors.append("High number of pregnancies")
         if smoke != 0:
             factors.append(next((k for k,v in smoking_map.items() if v==smoke), "Smoker"))
 
@@ -731,7 +792,7 @@ patient_info = {
 # Disease descriptions
 disease_descriptions = {
     "IHD": "Disease description: Reduced blood supply to the heart, can lead to chest pain or heart attack.",
-    "Diabetes": "Disease description: High blood sugar levels due to insulin issues.",
+    "Diabetes": "Disease description: High blood sugar levels due to insulin issues and other metabolic risk factors, including elevated waist circumference.",
     "Stroke": "Disease description: Interruption of blood flow to the brain causing potential long-term damage.",
     "COVID-19": "Disease description: Viral infection that can affect respiratory and other systems."
 }
