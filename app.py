@@ -811,7 +811,7 @@ def save_pdf(results_dict, patient_info, top_factors_dict):
     pdf.set_font("Arial", '', 12)
     pdf.cell(0, 8, f"Date: {datetime.now().strftime('%d-%m-%y')}", ln=True)
     pdf.cell(0, 8, f"Age: {patient_info.get('age', 'N/A')} | Gender: {patient_info.get('gender', 'N/A')} | BMI: {bmi if bmi is not None and not np.isnan(bmi) else 'N/A'}", ln=True)
-    pdf.cell(0, 8, f"Smoking: {patient_info.get('smoking', 'N/A')} | Alcohol: {patient_info.get('alcohol', 'N/A')} | Physical Activity: {patient_info.get('activity', 'N/A')}", ln=True)
+    pdf.cell(0, 8, f"Smoking: {smoking_status} | Alcohol: {alcohol_consumption} | Physical Activity: {physical_activity}", ln=True)
     # Add risk of disease
     risk_of = []
 
