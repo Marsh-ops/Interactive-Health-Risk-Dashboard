@@ -871,7 +871,6 @@ def save_pdf(results_dict, patient_info, top_factors_dict):
 # ---------------------------------------------------------------------------------------------
 
 # --- Generate patient-specific top factors dynamically ---
-
 top_factors_dynamic = {}
 for disease in results.keys():
     top_factors_dynamic[disease] = get_top_factors(
@@ -888,22 +887,30 @@ for disease in results.keys():
 
 # Only show download if we have prediction results
 if results:
-
     # Generate PDF bytes
     pdf_bytes = save_pdf(results, patient_info, top_factors_dynamic)
     
-    # Use session state to ensure the button is not duplicated
+    # Use session state to track if the PDF is ready and ensure the button isn't duplicated
     if "pdf_ready" not in st.session_state:
+        st.session_state.pdf_ready = False  # Initialize to False
+    
+    # Set pdf_ready to True after results are calculated
+    if not st.session_state.pdf_ready:
         st.session_state.pdf_ready = True
 
+    # Ensure the download button is rendered once by checking pdf_ready
     if st.session_state.pdf_ready:
         st.download_button(
             label="Download Report as PDF",
             data=pdf_bytes,
             file_name="health_risk_report.pdf",
             mime="application/pdf",
-            key="download_report_pdf"  # unique key for this widget
+            key="download_report_pdf"  # Unique key for the widget
         )
+
+        # After rendering the download button, set pdf_ready to False to prevent future duplication
+        st.session_state.pdf_ready = False
+
 else:
     st.info("Please calculate risk first to generate the PDF report.")
 
