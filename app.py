@@ -496,31 +496,25 @@ if run_prediction:
         results["Diabetes"] = diabetes_model.predict_proba(X_diabetes)[:, 1][0]
 
     # -------------------- IHD --------------------
-    ihd_features = {col: np.nan for col in ihd_model.feature_names_in_}
+    if show_ihd:
+        ihd_features = {col: np.nan for col in ihd_model.feature_names_in_}
 
-    ihd_features.update({
-        "age": age if not age_unknown else np.nan,
-        "sex": gender_binary,
-        "chest_pain_type": disease_inputs["ihd"].get("chest_pain", np.nan),
-        "resting_bp_s": systolic if not systolic_unknown else np.nan,
-        "cholesterol": disease_inputs["ihd"].get("cholesterol", np.nan),
-        "exercise_angina": disease_inputs["ihd"].get("exercise_angina", np.nan),
-        "st_slope": disease_inputs["ihd"].get("st_slope", np.nan),
-        "oldpeak": disease_inputs["ihd"].get("oldpeak", np.nan),
-        "max_heart_rate": disease_inputs["ihd"].get("max_heart_rate", np.nan)
-    })
+        ihd_features.update({
+            "age": age if not age_unknown else np.nan,
+            "sex": gender_binary,
+            "chest_pain_type": disease_inputs.get("ihd", {}).get("chest_pain", np.nan),
+            "resting_bp_s": systolic if not systolic_unknown else np.nan,
+            "cholesterol": disease_inputs.get("ihd", {}).get("cholesterol", np.nan),
+            "exercise_angina": disease_inputs.get("ihd", {}).get("exercise_angina", np.nan),
+            "st_slope": disease_inputs.get("ihd", {}).get("st_slope", np.nan),
+            "oldpeak": disease_inputs.get("ihd", {}).get("oldpeak", np.nan),
+            "max_heart_rate": disease_inputs.get("ihd", {}).get("max_heart_rate", np.nan)
+        })
 
-    # Convert to DataFrame
-    X_ihd = pd.DataFrame([ihd_features], columns=ihd_model.feature_names_in_)
+        X_ihd = pd.DataFrame([ihd_features], columns=ihd_model.feature_names_in_)
+        X_ihd_filled = X_ihd.fillna(ihd_feature_means)
 
-    # Fill missing values with training data means
-    X_ihd_filled = X_ihd.fillna(ihd_feature_means)
-
-    # Predict risk
-    risk_ihd = ihd_model.predict_proba(X_ihd_filled)[:, 1][0]
-
-    # **Assign to results so Streamlit sees it**
-    results["IHD"] = risk_ihd
+        results["IHD"] = ihd_model.predict_proba(X_ihd_filled)[:, 1][0]
 
     # -------------------- Stroke --------------------
     if show_stroke:
@@ -533,36 +527,36 @@ if run_prediction:
             "smoking_status": smoking_encoded
         })
 
-    X_stroke = pd.DataFrame([stroke_features], columns=stroke_model.feature_names_in_)
-    results["Stroke"] = stroke_model.predict_proba(X_stroke)[:, 1][0]
+        X_stroke = pd.DataFrame([stroke_features], columns=stroke_model.feature_names_in_)
+        results["Stroke"] = stroke_model.predict_proba(X_stroke)[:, 1][0]
 
     # -------------------- COVID-19 --------------------
     if show_covid:
     # Initialize features dict with NaNs
         covid_features = {col: np.nan for col in covid_model.feature_names_in_}
 
-    # Update with actual patient inputs
-    covid_features.update({
-        "age": age if not age_na else np.nan,
-        "gender": gender_binary,
-        "fever": disease_inputs["covid"].get("fever", np.nan),
-        "dry_cough": disease_inputs["covid"].get("dry_cough", np.nan),
-        "sore_throat": disease_inputs["covid"].get("sore_throat", np.nan),
-        "fatigue": disease_inputs["covid"].get("fatigue", np.nan),
-        "headache": disease_inputs["covid"].get("headache", np.nan),
-        "shortness_of_breath": disease_inputs["covid"].get("shortness_of_breath", np.nan),
-        "loss_of_smell": disease_inputs["covid"].get("loss_of_smell", np.nan),
-        "loss_of_taste": disease_inputs["covid"].get("loss_of_taste", np.nan),
-        "oxygen_level": disease_inputs["covid"].get("oxygen_level", np.nan),
-        "body_temperature": disease_inputs["covid"].get("body_temperature", np.nan),
-        "comorbidity": disease_inputs["covid"].get("comorbidity", np.nan),
-        "travel_history": disease_inputs["covid"].get("travel_history", np.nan),
-        "contact_with_patient": disease_inputs["covid"].get("contact_with_patient", np.nan),
-        "chest_pain": disease_inputs["covid"].get("chest_pain", np.nan)
-    })
+        # Update with actual patient inputs
+        covid_features.update({
+            "age": age if not age_na else np.nan,
+            "gender": gender_binary,
+            "fever": disease_inputs["covid"].get("fever", np.nan),
+            "dry_cough": disease_inputs["covid"].get("dry_cough", np.nan),
+            "sore_throat": disease_inputs["covid"].get("sore_throat", np.nan),
+            "fatigue": disease_inputs["covid"].get("fatigue", np.nan),
+            "headache": disease_inputs["covid"].get("headache", np.nan),
+            "shortness_of_breath": disease_inputs["covid"].get("shortness_of_breath", np.nan),
+            "loss_of_smell": disease_inputs["covid"].get("loss_of_smell", np.nan),
+            "loss_of_taste": disease_inputs["covid"].get("loss_of_taste", np.nan),
+            "oxygen_level": disease_inputs["covid"].get("oxygen_level", np.nan),
+            "body_temperature": disease_inputs["covid"].get("body_temperature", np.nan),
+            "comorbidity": disease_inputs["covid"].get("comorbidity", np.nan),
+            "travel_history": disease_inputs["covid"].get("travel_history", np.nan),
+            "contact_with_patient": disease_inputs["covid"].get("contact_with_patient", np.nan),
+            "chest_pain": disease_inputs["covid"].get("chest_pain", np.nan)
+        })
 
-    X_covid = pd.DataFrame([covid_features], columns=covid_model.feature_names_in_)
-    results["COVID-19"] = covid_model.predict_proba(X_covid)[:, 1][0]
+        X_covid = pd.DataFrame([covid_features], columns=covid_model.feature_names_in_)
+        results["COVID-19"] = covid_model.predict_proba(X_covid)[:, 1][0]
 
 #---------------------------------------------------------------------------------------------#
 # --- Disclaimer / Info --- 
@@ -604,6 +598,7 @@ def get_top_factors(disease, patient_data,
 
     # --- Diabetes ---
     if disease == "Diabetes":
+        stroke = patient_data.get("diabetes", {})
         bmi = bmi_val if bmi_val is not None else patient_data["diabetes"].get("bmi", np.nan)
         dpf = patient_data["diabetes"].get("dpf", np.nan)
         glucose = patient_data["diabetes"].get("avg_glucose", np.nan)
@@ -623,26 +618,25 @@ def get_top_factors(disease, patient_data,
 
     # --- IHD ---
     elif disease == "IHD":
-        chol = patient_data["ihd"].get("cholesterol", np.nan)
-        sys_bp = systolic_val if systolic_val is not None else patient_data["ihd"].get("resting_bp_s", np.nan)
-        dia_bp = diastolic_val if diastolic_val is not None else patient_data["ihd"].get("diastolic_bp", np.nan)
-        smoke = smoking_val if smoking_val is not None else patient_data["ihd"].get("smoking_status", 0)
-        activity = activity_val if activity_val is not None else patient_data["ihd"].get("activity_level", 2)
-        max_hr = patient_data["ihd"].get("max_heart_rate", np.nan)
-        chest = patient_data["ihd"].get("chest_pain_type", np.nan)
-        ex_angina = patient_data["ihd"].get("exercise_angina", np.nan)
+        ihd = patient_data.get("ihd", {})
+
+        chol = ihd.get("cholesterol", np.nan)
+        sys_bp = systolic_val if systolic_val is not None else np.nan
+        smoke = smoking_val if smoking_val is not None else 0
+        activity = activity_val if activity_val is not None else 2
+        max_hr = ihd.get("max_heart_rate", np.nan)
+        chest = ihd.get("chest_pain", np.nan)
+        ex_angina = ihd.get("exercise_angina", np.nan)
 
         if not np.isnan(chol) and chol > 240:
             factors.append("High cholesterol")
         if not np.isnan(sys_bp) and sys_bp > 140:
-            factors.append("High systolic BP")
-        if not np.isnan(dia_bp) and dia_bp > 90:
-            factors.append("High diastolic BP")
+            factors.append("High systolic blood pressure")
         if smoke != 0:
-            factors.append(next((k for k,v in smoking_map.items() if v==smoke), "Smoker"))
-        if not np.isnan(activity) and activity < 2:
+            factors.append("Smoking")
+        if activity < 2:
             factors.append("Low physical activity")
-        if not np.isnan(ex_angina) and ex_angina > 0:
+        if not np.isnan(ex_angina) and ex_angina == 1:
             factors.append("Exercise-induced angina")
         if not np.isnan(max_hr) and max_hr > 150:
             factors.append("High heart rate")
@@ -651,11 +645,13 @@ def get_top_factors(disease, patient_data,
 
     # --- Stroke ---
     elif disease == "Stroke":
-        sys_bp = systolic_val if systolic_val is not None else patient_data["stroke"].get("systolic_bp", np.nan)
-        dia_bp = diastolic_val if diastolic_val is not None else patient_data["stroke"].get("diastolic_bp", np.nan)
-        bmi = bmi_val if bmi_val is not None else patient_data["stroke"].get("bmi", np.nan)
-        smoke = smoking_val if smoking_val is not None else patient_data["stroke"].get("smoking_status", 0)
-        prev_tia = patient_data["stroke"].get("previous_tia", np.nan)
+        stroke = patient_data.get("stroke", {})
+
+        sys_bp = systolic_val if systolic_val is not None else stroke.get("systolic", np.nan)
+        dia_bp = diastolic_val if diastolic_val is not None else stroke.get("diastolic", np.nan)
+        bmi = bmi_val if bmi_val is not None else stroke.get("bmi", np.nan)
+        smoke = smoking_val if smoking_val is not None else stroke.get("smoking_status", 0)
+        prev_tia = stroke.get("previous_tia", np.nan)
 
         if not np.isnan(sys_bp) and sys_bp > 130:
             factors.append("High systolic BP")
@@ -671,6 +667,7 @@ def get_top_factors(disease, patient_data,
     # --- COVID-19 ---
     elif disease == "COVID-19":
         covid_data = patient_data.get("covid", {})
+
         age = age_val if age_val is not None else covid_data.get("age", np.nan)
         gender = gender_val if gender_val is not None else covid_data.get("gender", np.nan)
 
@@ -711,8 +708,11 @@ patient_info = {
     "bmi": bmi,
     "systolic": systolic,
     "diastolic": diastolic,
-    "smoking": smoking_encoded,
-    "activity": activity_encoded,
+    "smoking_encoded": smoking_encoded,
+    "smoking_label": smoking_status,
+    "alcohol": alcohol_consumption,
+    "activity_encoded": activity_encoded,
+    "activity_label": physical_activity,
     "diabetes": disease_inputs.get("diabetes", {}),
     "ihd": disease_inputs.get("ihd", {}),
     "stroke": disease_inputs.get("stroke", {}),
@@ -727,11 +727,11 @@ disease_descriptions = {
     "COVID-19": "Disease description: Viral infection that can affect respiratory and other systems."
 }
 
-def normalize_disease_name(name: str) -> str:
-    """
-    Removes ' Risk' suffix or trailing whitespace to match disease_descriptions keys.
-    """
-    return name.replace(" Risk", "").strip()
+# def normalize_disease_name(name: str) -> str:
+  #  """
+   # Removes ' Risk' suffix or trailing whitespace to match disease_descriptions keys.
+    #"""
+    #return name.replace(" Risk", "").strip()
 
 def save_pdf(results_dict, patient_info, top_factors_dict):
     pdf = FPDF()
@@ -876,25 +876,6 @@ for disease in results.keys():
         smoking_val=smoking_encoded,
         activity_val=activity_encoded
     )
-
-if results:
-    # Gather patient info
-    patient_info = {
-    "age": age,
-    "gender": gender,
-    "bmi": bmi,
-    "systolic": systolic,
-    "diastolic": diastolic,
-    "smoking": smoking_status,
-    "alcohol": alcohol_consumption,
-    "activity": physical_activity,
-    "diabetes": disease_inputs.get("diabetes", {}),
-    "ihd": disease_inputs.get("ihd", {}),
-    "covid": disease_inputs.get("covid", {}),
-    }
-
-    # Generate PDF bytes
-    pdf_bytes = save_pdf(results, patient_info, top_factors_dynamic)
 
     if results:  # Only show download if we have prediction results
         pdf_bytes = save_pdf(results, patient_info, top_factors_dynamic)
