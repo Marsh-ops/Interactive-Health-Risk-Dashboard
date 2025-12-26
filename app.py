@@ -285,10 +285,7 @@ if show_diabetes:
 
     # --- Waist Circumference Input ---
     # Checkbox for when waist circumference is unknown
-    waist_thickness_na = st.checkbox("Waist Circumference: N/A or Unknown", key="waist_thickness_na_checkbox")
-
-    # --- Waist Circumference Input ---
-    waist_thickness_na = st.checkbox("Waist Circumference: N/A or Unknown")
+    waist_thickness_na = st.checkbox("Waist Circumference: N/A or Unknown", key="waist_thickness_na_checkbox_1")
 
     # Only show waist circumference input if not marked as unknown
     if not waist_thickness_na:
