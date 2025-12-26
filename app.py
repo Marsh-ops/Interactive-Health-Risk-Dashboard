@@ -497,8 +497,10 @@ if run_prediction:
 
     # -------------------- IHD --------------------
     if show_ihd:
+        # Initialize IHD features with NaN values
         ihd_features = {col: np.nan for col in ihd_model.feature_names_in_}
 
+        # Update with actual values, using .get() to avoid KeyErrors for missing entries
         ihd_features.update({
             "age": age if not age_unknown else np.nan,
             "sex": gender_binary,
@@ -511,9 +513,13 @@ if run_prediction:
             "max_heart_rate": disease_inputs.get("ihd", {}).get("max_heart_rate", np.nan)
         })
 
+        # Create DataFrame for IHD features
         X_ihd = pd.DataFrame([ihd_features], columns=ihd_model.feature_names_in_)
+
+        # Fill missing values with the feature means
         X_ihd_filled = X_ihd.fillna(ihd_feature_means)
 
+        # Get the model prediction for IHD
         results["IHD"] = ihd_model.predict_proba(X_ihd_filled)[:, 1][0]
 
     # -------------------- Stroke --------------------
