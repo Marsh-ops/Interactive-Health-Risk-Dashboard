@@ -886,16 +886,21 @@ for disease in results.keys():
         activity_val=activity_encoded
     )
 
-    if results:  # Only show download if we have prediction results
-        pdf_bytes = save_pdf(results, patient_info, top_factors_dynamic)
-        st.download_button(
-            label="Download Report as PDF",
-            data=pdf_bytes,
-            file_name="health_risk_report.pdf",
-            mime="application/pdf"
-        )
-    else:
-        st.info("Please calculate risk first to generate the PDF report.")
+    # Only show download if we have prediction results
+if results:
+    # Generate PDF bytes
+    pdf_bytes = save_pdf(results, patient_info, top_factors_dynamic)
+    
+    # Add a unique key to the download button to prevent StreamlitDuplicateElementId error
+    st.download_button(
+        label="Download Report as PDF",
+        data=pdf_bytes,
+        file_name="health_risk_report.pdf",
+        mime="application/pdf",
+        key="download_button_unique_key"  # Add a unique key here
+    )
+else:
+    st.info("Please calculate risk first to generate the PDF report.")
 
 # ---------------------------------------------------------------------------------------------
 # --- Patient Feedback Survey ---
