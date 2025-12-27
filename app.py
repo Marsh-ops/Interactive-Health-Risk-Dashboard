@@ -358,6 +358,15 @@ if show_diabetes:
 
     # Now ask if DPF is N/A or Unknown
     dpf_na = st.checkbox("Diabetes Pedigree Function: N/A or Unknown")
+    
+    with st.expander("What is the Diabetes Pedigree Function (DPF)?"):
+        st.write(
+            "The **Diabetes Pedigree Function (DPF)** estimates genetic risk for diabetes.\n\n"
+            "It reflects whether close family members (parents or siblings) have diabetes "
+            "and the age at which they were diagnosed.\n\n"
+            "Higher DPF values suggest a stronger hereditary risk of developing diabetes."
+        )
+
     dpf = np.nan if dpf_na else dpf_score  # Use the pre-calculated score
     dpf_unknown = int(dpf_na)
 
@@ -407,6 +416,16 @@ if show_ihd:
             "ST slope during exercise",
             ["Upsloping (normal)", "Flat", "Downsloping (abnormal)"]
         )
+
+        with st.expander("What is ST Slope?"):
+            st.write(
+                "**ST Slope** describes the shape of the ST segment on an ECG during exercise testing.\n\n"
+                "- **Upsloping**: Usually considered normal\n"
+                "- **Flat**: May indicate reduced blood flow to the heart\n"
+                "- **Downsloping**: More strongly associated with ischemic heart disease (IHD)\n\n"
+                "This measurement helps assess how the heart responds to physical stress."
+            )
+
         st_slope_map = {
             "Upsloping (normal)": 2,
             "Flat": 1,
