@@ -25,22 +25,30 @@ from sklearn.impute import SimpleImputer
 
 MODEL_PATH = "models"
 
-diabetes_model = joblib.load(os.path.join(MODEL_PATH, "diabetes_model_calibrated.pkl"))
-ihd_model = joblib.load(os.path.join(MODEL_PATH, "ihd_model_calibrated.pkl"))
-stroke_model = joblib.load(os.path.join(MODEL_PATH, "stroke_model_calibrated.pkl"))
-covid_model = joblib.load(os.path.join(MODEL_PATH, "covid_model_calibrated.pkl"))
+@st.cache_resource
+def load_model(path):
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Missing model: {path}")
+    if os.path.getsize(path) < 1000:
+        raise ValueError(f"Model file corrupted: {path}")
+    return joblib.load(path)
 
-with open("models/diabetes_model_feature_means.json") as f:
-    diabetes_feature_means = json.load(f)
+diabetes_model = load_model(os.path.join(MODEL_PATH, "diabetes_model_calibrated.pkl"))
+ihd_model      = load_model(os.path.join(MODEL_PATH, "ihd_model_calibrated.pkl"))
+stroke_model   = load_model(os.path.join(MODEL_PATH, "stroke_model_calibrated.pkl"))
+covid_model    = load_model(os.path.join(MODEL_PATH, "covid_model_calibrated.pkl"))
 
-with open("models/ihd_model_feature_means.json") as f:
-    ihd_feature_means = json.load(f)
+@st.cache_resource
+def load_json(path):
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Missing file: {path}")
+    with open(path) as f:
+        return json.load(f)
 
-with open("models/stroke_model_feature_means.json") as f:
-    stroke_feature_means = json.load(f)
-
-with open("models/covid_model_feature_means.json") as f:
-    covid_feature_means = json.load(f)
+diabetes_feature_means = load_json("models/diabetes_model_feature_means.json")
+ihd_feature_means      = load_json("models/ihd_model_feature_means.json")
+stroke_feature_means   = load_json("models/stroke_model_feature_means.json")
+covid_feature_means    = load_json("models/covid_model_feature_means.json")
 
 # -----------------------------------------------------------------------------------
 # --- Function: Safe model prediction with NaN handling ---
@@ -357,15 +365,15 @@ if show_diabetes:
     st.write(f"**Calculated Diabetes Pedigree Function (DPF) score:** {dpf_score:.2f}")
 
     # Now ask if DPF is N/A or Unknown
-    dpf_na = st.checkbox("Diabetes Pedigree Function: N/A or Unknown")
-    
-    with st.expander("What is the Diabetes Pedigree Function (DPF)?"):
-        st.write(
-            "The **Diabetes Pedigree Function (DPF)** estimates genetic risk for diabetes.\n\n"
+    dpf_na = st.checkbox(
+        "Diabetes Pedigree Function: N/A or Unknown",
+        help=(
+            "The Diabetes Pedigree Function (DPF) estimates genetic risk for diabetes.\n\n"
             "It reflects whether close family members (parents or siblings) have diabetes "
             "and the age at which they were diagnosed.\n\n"
-            "Higher DPF values suggest a stronger hereditary risk of developing diabetes."
+            "Higher values indicate a stronger hereditary risk."
         )
+    )
 
     dpf = np.nan if dpf_na else dpf_score  # Use the pre-calculated score
     dpf_unknown = int(dpf_na)
@@ -414,17 +422,15 @@ if show_ihd:
     else:
         st_slope_label = st.selectbox(
             "ST slope during exercise",
-            ["Upsloping (normal)", "Flat", "Downsloping (abnormal)"]
-        )
-
-        with st.expander("What is ST Slope?"):
-            st.write(
-                "**ST Slope** describes the shape of the ST segment on an ECG during exercise testing.\n\n"
-                "- **Upsloping**: Usually considered normal\n"
-                "- **Flat**: May indicate reduced blood flow to the heart\n"
-                "- **Downsloping**: More strongly associated with ischemic heart disease (IHD)\n\n"
-                "This measurement helps assess how the heart responds to physical stress."
+            ["Upsloping (normal)", "Flat", "Downsloping (abnormal)"],
+            help=(
+                "ST slope describes the shape of the ST segment on an ECG during exercise testing.\n\n"
+                "• Upsloping: Usually normal\n"
+                "• Flat: May indicate reduced blood flow\n"
+                "• Downsloping: Strongly associated with ischemic heart disease (IHD)\n\n"
+                "Used to assess how the heart responds to physical stress."
             )
+        )
 
         st_slope_map = {
             "Upsloping (normal)": 2,
