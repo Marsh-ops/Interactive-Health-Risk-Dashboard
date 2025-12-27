@@ -359,7 +359,7 @@ if show_diabetes:
     # Now ask if DPF is N/A or Unknown
     dpf_na = st.checkbox("Diabetes Pedigree Function: N/A or Unknown")
     
-    with st.expander("What is the Diabetes Pedigree Function (DPF)?", expanded=True):
+    with st.expander("What is the Diabetes Pedigree Function (DPF)?"):
         st.write(
             "The **Diabetes Pedigree Function (DPF)** estimates genetic risk for diabetes.\n\n"
             "It reflects whether close family members (parents or siblings) have diabetes "
